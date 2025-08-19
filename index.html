@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>直銷組織架構圖 MVP</title>
+  <title>組織架構圖 MVP</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <style>
     :root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; --pri:#3498db; --pri-2:#2980b9; --hi:#f39c12; --hi-2:#e67e22; --warn:#e74c3c; --warn-2:#c0392b; }
@@ -47,7 +47,7 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>直銷組織架構圖</h1>
+      <h1>組織架構圖</h1>
       <p>點擊節點展開下線組織，查看各階段業績表現</p>
       <div class="date-filter">
         <label>篩選期間</label>
@@ -101,8 +101,7 @@
       ]
     };
 
-    // ====== Mock performance（簡化：固定一組日期區間的預算值；未來改由 API 回傳） ======
-    // 以每人每月平均訂貨=ordersAvg 估算；渲染時計算 orders = avg * 月數；pickup = orders * 0.95
+    // ====== Mock performance（簡化） ======
     const perfProfile = {
       CEO001: 400/1, R001: 160/1, T001: 90/1, M001: 45/1, M002: 25/1,
       T002: 70/1,  M003: 20/1,  M004: 40/1,
@@ -110,34 +109,32 @@
       T004: 55/1,  M007: 18/1
     };
 
-    // ====== 公開的資料層 API（之後接後端時，保持同名介面） ======
-    export async function getTreeRoot(){ return structuredClone(treeData); }
-    export async function getChildren(parent){ return parent.children || []; }
-    export async function getPerf(memberIds, startDate, endDate){
-      // 計算跨越的「月份數」，做成簡單估算。未來改成真實聚合即可。
-      const d1 = new Date(startDate), d2 = new Date(endDate);
-      const months = Math.max(1, (d2.getFullYear()-d1.getFullYear())*12 + (d2.getMonth()-d1.getMonth()) + 1);
-      const map = {};
-      for(const id of memberIds){
-        const avg = perfProfile[id] || 0; // 每月平均訂貨(萬)
-        const orders = Math.round(avg * months);
-        const pickup = Math.round(orders * 0.95);
-        map[id] = { orders, pickup, months };
+    // ====== 將資料層掛到全域，避免模組匯入解析問題（GitHub Pages 無 import map） ======
+    window.DataProvider = {
+      async getTreeRoot(){ return structuredClone(treeData); },
+      async getChildren(parent){ return parent.children || []; },
+      async getPerf(memberIds, startDate, endDate){
+        const d1 = new Date(startDate), d2 = new Date(endDate);
+        const months = Math.max(1, (d2.getFullYear()-d1.getFullYear())*12 + (d2.getMonth()-d1.getMonth()) + 1);
+        const map = {};
+        for(const id of memberIds){
+          const avg = perfProfile[id] || 0; // 每月平均訂貨(萬)
+          const orders = Math.round(avg * months);
+          const pickup = Math.round(orders * 0.95);
+          map[id] = { orders, pickup, months };
+        }
+        return map;
+      },
+      async getLevelsAt(memberIds, endTs){
+        const lvMap = {}; (function walk(n){ lvMap[n.id]=n.level; (n.children||[]).forEach(walk); })(treeData);
+        const out = {}; for(const id of memberIds) out[id]=lvMap[id]||""; return out;
       }
-      return map;
-    }
-    export async function getLevelsAt(memberIds, endTs){
-      // MVP：用靜態層級；未來依 endTs 從歷史表取。
-      const lvMap = {};
-      // 走訪 treeData 建映射
-      (function walk(n){ lvMap[n.id]=n.level; (n.children||[]).forEach(walk); })(treeData);
-      const out = {}; for(const id of memberIds) out[id]=lvMap[id]||""; return out;
-    }
+    };
   </script>
 
   <!-- App -->
   <script type="module">
-    import { getTreeRoot, getChildren, getPerf, getLevelsAt } from '#data-provider';
+    const { getTreeRoot, getChildren, getPerf, getLevelsAt } = window.DataProvider;
 
     // ====== State ======
     let root, treeLayout, g, i=0; // d3 state
