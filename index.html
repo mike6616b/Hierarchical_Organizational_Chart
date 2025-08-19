@@ -1,80 +1,71 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>組織架構圖 MVP</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-  <style>
-    :root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; }
-    * { box-sizing:border-box }
-    body { margin:0; font-family:'Microsoft JhengHei', system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg) }
-    .container { max-width:1400px; margin:16px auto; background:var(--card); border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.08); overflow:hidden }
-    .header { position:relative; padding:20px; color:#fff; background:linear-gradient(135deg,#2c3e50 0%,#3498db 100%) }
-    .header h1 { margin:0 0 6px; font-size:22px }
-    .header p { margin:0; opacity:.9 }
-    .date-filter { position:absolute; top:16px; right:16px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); backdrop-filter:blur(10px); border-radius:10px; padding:10px }
-    .date-filter input[type="date"], .date-filter input[type="text"] { width:160px; padding:8px; border:none; border-radius:6px; background:rgba(255,255,255,.95); font-size:12px }
-    .date-filter button { padding:8px 12px; border:none; border-radius:6px; background:#27ae60; color:#fff; font-size:12px; cursor:pointer }
-    .date-filter button:hover { filter:brightness(.95) }
-    .chart-container { padding:16px; text-align:center }
-    .instructions { background:linear-gradient(135deg,#e8f5e8 0%,#f0f8ff 100%); border:1px solid #27ae60; color:var(--ink); padding:12px; border-radius:10px; margin:0 0 12px }
-    .legend { display:flex; justify-content:center; gap:18px; flex-wrap:wrap; padding:12px; background:#f8f9fa; border-radius:10px }
-    .legend-item { display:flex; align-items:center; gap:8px; font-size:12px }
-    .legend-circle { width:12px; height:12px; border-radius:50%; border:2px solid }
-    .legend-dealer  { background:#5582b4; border-color:#3f668e }
-    .legend-level   { background:#f7959d; border-color:#d86a74 }
-    .legend-normal  { background:#deabe9; border-color:#b687c8 }
-    .legend-high    { background:#f39c12; border-color:#e67e22 }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>組織架構圖 MVP</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+:root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; }
+* { box-sizing:border-box }
+body { margin:0; font-family:'Microsoft JhengHei', system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg) }
+.container { max-width:1400px; margin:16px auto; background:var(--card); border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.08); overflow:hidden }
+.header { position:relative; padding:20px; color:#fff; background:linear-gradient(135deg,#2c3e50 0%,#3498db 100%) }
+.header h1 { margin:0 0 6px; font-size:22px }
+.header p { margin:0; opacity:.9 }
+.date-filter { position:absolute; top:16px; right:16px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); backdrop-filter:blur(10px); border-radius:10px; padding:10px }
+.date-filter input[type="date"], .date-filter input[type="text"] { width:160px; padding:8px; border:none; border-radius:6px; background:rgba(255,255,255,.95); font-size:12px }
+.date-filter button { padding:8px 12px; border:none; border-radius:6px; background:#27ae60; color:#fff; font-size:12px; cursor:pointer }
+.date-filter button:hover { filter:brightness(.95) }
+.chart-container { padding:16px; text-align:center }
+.instructions { background:linear-gradient(135deg,#e8f5e8 0%,#f0f8ff 100%); border:1px solid #27ae60; color:var(--ink); padding:12px; border-radius:10px; margin:0 0 12px; font-size:13px; }
 
-    .stats-summary { display:flex; justify-content:space-around; gap:8px; flex-wrap:wrap; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; padding:14px; border-radius:10px; margin-top:12px }
-    .stat-item { text-align:center }
-    .stat-value { font-size:22px; font-weight:800; display:block }
-    .stat-label { font-size:12px; opacity:.9 }
 
-    .node circle { stroke-width:2px; transition:all .25s ease }
-    .node circle:hover { transform:scale(1.08) }
-    .node text { fill:var(--ink); text-anchor:middle; pointer-events:none }
-    .name-text { font-weight:700; font-size:14px; dominant-baseline:middle }
-    .level-text { font-size:11px; color:var(--muted); dominant-baseline:middle }
-    .orders-text { font-size:10px; fill:#27ae60; font-weight:700; dominant-baseline:middle }
-    .pickup-text { font-size:10px; fill:#8e44ad; font-weight:700; dominant-baseline:middle }
+.stats-summary { display:flex; justify-content:space-around; gap:8px; flex-wrap:wrap; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; padding:14px; border-radius:10px; margin-top:12px }
+.stat-item { text-align:center }
+.stat-value { font-size:22px; font-weight:800; display:block }
+.stat-label { font-size:12px; opacity:.9 }
 
-    .link { fill:none; stroke:#bdc3c7; stroke-width:2px; stroke-opacity:.85 }
-  </style>
+
+.node circle { stroke-width:2px; transition:all .25s ease }
+.node circle:hover { transform:scale(1.08) }
+.node text { fill:var(--ink); text-anchor:middle; pointer-events:none }
+.name-text { font-weight:700; font-size:14px; dominant-baseline:middle }
+.level-text { font-size:11px; color:var(--muted); dominant-baseline:middle }
+.orders-text { font-size:10px; fill:#27ae60; font-weight:700; dominant-baseline:middle }
+.pickup-text { font-size:10px; fill:#8e44ad; font-weight:700; dominant-baseline:middle }
+
+
+.link { fill:none; stroke:#bdc3c7; stroke-width:2px; stroke-opacity:.85 }
+</style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>組織架構圖</h1>
-      <p>點擊節點展開下線組織，查看各階段業績表現</p>
-      <div class="date-filter">
-        <input type="date" id="startDate" value="2025-01-01" />
-        <input type="date" id="endDate" value="2025-08-15" />
-        <button id="btnApply">更新數據</button>
-        <input type="text" id="searchName" placeholder="搜尋人名" />
-        <button id="btnSearch" style="background:#3b82f6">搜尋</button>
-        <button id="btnClear" style="background:#6b7280">清除</button>
-      </div>
-    </div>
+<div class="container">
+<div class="header">
+<h1>組織架構圖</h1>
+<p>點擊節點展開下線組織，查看各階段業績表現</p>
+<div class="date-filter">
+<input type="date" id="startDate" value="2025-01-01" />
+<input type="date" id="endDate" value="2025-08-15" />
+<button id="btnApply">更新數據</button>
+<input type="text" id="searchName" placeholder="搜尋人名" />
+<button id="btnSearch" style="background:#3b82f6">搜尋</button>
+<button id="btnClear" style="background:#6b7280">清除</button>
+</div>
+</div>
 
-    <div class="chart-container">
-      <div class="instructions">📊 使用日期區間與搜尋人名。等級配色：<b style="color:#5582b4">經銷商</b>、<b style="color:#f7959d">高/中/初級</b>、<b style="color:#deabe9">一般</b>；🟡 邊框加粗代表高業績（月均訂貨 ≥ 50萬）。</div>
-      <div id="chart"></div>
-      <div class="stats-summary">
-        <div class="stat-item"><span class="stat-value" id="totalOrders">0</span><span class="stat-label">總訂貨金額 (萬元)</span></div>
-        <div class="stat-item"><span class="stat-value" id="totalPickup">0</span><span class="stat-label">總提貨金額 (萬元)</span></div>
-        <div class="stat-item"><span class="stat-value" id="totalMembers">0</span><span class="stat-label">組織總人數</span></div>
-        <div class="stat-item"><span class="stat-value" id="highPerformers">0</span><span class="stat-label">高業績會員</span></div>
-      </div>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-circle legend-dealer"></div><span>經銷商</span></div>
-        <div class="legend-item"><div class="legend-circle legend-level"></div><span>高級 / 中級 / 初級</span></div>
-        <div class="legend-item"><div class="legend-circle legend-normal"></div><span>一般</span></div>
-        <div class="legend-item"><div class="legend-circle legend-high"></div><span>高業績</span></div>
-      </div>
-    </div>
-  </div>
+
+<div class="chart-container">
+<!-- ✅ 用下方說明欄取代 legend -->
+<div class="instructions">
+📊 使用日期區間與搜尋人名。等級配色：
+<span style="color:#5582b4;font-weight:bold;">經銷商</span>、
+<span style="color:#f7959d;font-weight:bold;">高/中/初級</span>、
+<span style="color:#deabe9;font-weight:bold;">一般</span>；
+<span style="color:#f39c12;font-weight:bold;">🟡 邊框加粗代表高業績（月均訂貨 ≥ 50萬）</span>。
+</div>
+<div id="chart"></div>
+</div>
 
   <!-- Data (mock) + API onto window -->
   <script>
