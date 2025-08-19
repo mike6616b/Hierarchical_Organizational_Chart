@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>直銷組織架構圖 MVP</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    :root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; --pri:#3498db; --pri-2:#2980b9; --hi:#f39c12; --hi-2:#e67e22; --warn:#e74c3c; --warn-2:#c0392b; }
+    * { box-sizing:border-box }
+    body { margin:0; font-family:'Microsoft JhengHei', system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg) }
+    .container { max-width:1400px; margin:16px auto; background:var(--card); border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.08); overflow:hidden }
+    .header { position:relative; padding:20px; color:#fff; background:linear-gradient(135deg,#2c3e50 0%,#3498db 100%) }
+    .header h1 { margin:0 0 6px; font-size:22px }
+    .header p { margin:0; opacity:.9 }
+    .date-filter { position:absolute; top:16px; right:16px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); backdrop-filter:blur(10px); border-radius:10px; padding:10px }
+    .date-filter label { font-size:12px; font-weight:700 }
+    .date-filter input { width:135px; padding:8px; border:none; border-radius:6px; background:rgba(255,255,255,.95); font-size:12px }
+    .date-filter button { padding:8px 12px; border:none; border-radius:6px; background:#27ae60; color:#fff; font-size:12px; cursor:pointer }
+    .date-filter button:hover { filter:brightness(.95) }
+    .chart-container { padding:16px; text-align:center }
+    .instructions { background:linear-gradient(135deg,#e8f5e8 0%,#f0f8ff 100%); border:1px solid #27ae60; color:var(--ink); padding:12px; border-radius:10px; margin:0 0 12px }
+    .legend { display:flex; justify-content:center; gap:18px; flex-wrap:wrap; padding:12px; background:#f8f9fa; border-radius:10px }
+    .legend-item { display:flex; align-items:center; gap:8px; font-size:12px }
+    .legend-circle { width:12px; height:12px; border-radius:50%; border:2px solid }
+    .legend-normal { background:var(--pri); border-color:var(--pri-2) }
+    .legend-collapsed { background:var(--warn); border-color:var(--warn-2) }
+    .legend-high { background:var(--hi); border-color:var(--hi-2) }
+    .stats-summary { display:flex; justify-content:space-around; gap:8px; flex-wrap:wrap; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; padding:14px; border-radius:10px; margin-top:12px }
+    .stat-item { text-align:center }
+    .stat-value { font-size:22px; font-weight:800; display:block }
+    .stat-label { font-size:12px; opacity:.9 }
+    .node-group { cursor:pointer }
+    .node circle { fill:var(--pri); stroke:var(--pri-2); stroke-width:2px; transition:all .25s ease }
+    .node circle:hover { transform:scale(1.08) }
+    .node.collapsed circle { fill:var(--warn); stroke:var(--warn-2) }
+    .node.high-performer circle { fill:var(--hi); stroke:var(--hi-2); stroke-width:3px }
+    .node text { fill:var(--ink); text-anchor:middle; pointer-events:none }
+    .node .name-text { font-weight:700; font-size:14px; dominant-baseline:middle }
+    .node .level-text { font-size:11px; fill:var(--muted); dominant-baseline:middle }
+    .node .orders-text { font-size:10px; fill:#27ae60; font-weight:700; dominant-baseline:middle }
+    .node .pickup-text { font-size:10px; fill:#8e44ad; font-weight:700; dominant-baseline:middle }
+    .link { fill:none; stroke:#bdc3c7; stroke-width:2px; stroke-opacity:.85 }
+    @media (max-width: 768px){ .date-filter{ position:relative; top:auto; right:auto; margin-top:10px } .header h1{ font-size:18px } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>直銷組織架構圖</h1>
+      <p>點擊節點展開下線組織，查看各階段業績表現</p>
+      <div class="date-filter">
+        <label>篩選期間</label>
+        <input type="date" id="startDate" value="2025-01-01" />
+        <input type="date" id="endDate" value="2025-08-15" />
+        <button id="btnApply">更新數據</button>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <div class="instructions">📊 選擇日期區間查看各階層業績 | 🔵 一般會員 | 🔴 已收縮節點 | 🟡 高業績會員 (月訂貨 ≥ 50萬)</div>
+      <div id="chart"></div>
+      <div class="stats-summary">
+        <div class="stat-item"><span class="stat-value" id="totalOrders">0</span><span class="stat-label">總訂貨金額 (萬元)</span></div>
+        <div class="stat-item"><span class="stat-value" id="totalPickup">0</span><span class="stat-label">總提貨金額 (萬元)</span></div>
+        <div class="stat-item"><span class="stat-value" id="totalMembers">0</span><span class="stat-label">組織總人數</span></div>
+        <div class="stat-item"><span class="stat-value" id="highPerformers">0</span><span class="stat-label">高業績會員</span></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-circle legend-normal"></div><span>一般會員</span></div>
+        <div class="legend-item"><div class="legend-circle legend-high"></div><span>高業績會員 (月訂貨≥50萬)</span></div>
+        <div class="legend-item"><div class="legend-circle legend-collapsed"></div><span>已收縮節點</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data layer (mock). 後續要接後端時，改成 import 'supabaseDataProvider.js'，函式簽名不變 -->
+  <script type="module" id="data-provider">
+    // ====== Mock members + edges (樹結構) ======
+    const treeData = {
+      id:"CEO001", name:"林執行長", level:"鑽石總裁", children:[
+        { id:"R001", name:"王區域總監", level:"白金總監", children:[
+          { id:"T001", name:"李組長", level:"金級主任", children:[
+            { id:"M001", name:"陳小美", level:"銀級會員" },
+            { id:"M002", name:"張志明", level:"銀級會員" }
+          ]},
+          { id:"T002", name:"黃主任", level:"金級主任", children:[
+            { id:"M003", name:"劉大偉", level:"銅級會員" },
+            { id:"M004", name:"周美麗", level:"銀級會員" }
+          ]}
+        ]},
+        { id:"R002", name:"趙區域總監", level:"白金總監", children:[
+          { id:"T003", name:"吳組長", level:"金級主任", children:[
+            { id:"M005", name:"馮小強", level:"銀級會員" },
+            { id:"M006", name:"蔡雅婷", level:"銅級會員" }
+          ]},
+          { id:"T004", name:"許主任", level:"金級主任", children:[
+            { id:"M007", name:"謝小芬", level:"銅級會員" }
+          ]}
+        ]}
+      ]
+    };
+
+    // ====== Mock performance（簡化：固定一組日期區間的預算值；未來改由 API 回傳） ======
+    // 以每人每月平均訂貨=ordersAvg 估算；渲染時計算 orders = avg * 月數；pickup = orders * 0.95
+    const perfProfile = {
+      CEO001: 400/1, R001: 160/1, T001: 90/1, M001: 45/1, M002: 25/1,
+      T002: 70/1,  M003: 20/1,  M004: 40/1,
+      R002: 120/1, T003: 65/1,  M005: 30/1, M006: 12/1,
+      T004: 55/1,  M007: 18/1
+    };
+
+    // ====== 公開的資料層 API（之後接後端時，保持同名介面） ======
+    export async function getTreeRoot(){ return structuredClone(treeData); }
+    export async function getChildren(parent){ return parent.children || []; }
+    export async function getPerf(memberIds, startDate, endDate){
+      // 計算跨越的「月份數」，做成簡單估算。未來改成真實聚合即可。
+      const d1 = new Date(startDate), d2 = new Date(endDate);
+      const months = Math.max(1, (d2.getFullYear()-d1.getFullYear())*12 + (d2.getMonth()-d1.getMonth()) + 1);
+      const map = {};
+      for(const id of memberIds){
+        const avg = perfProfile[id] || 0; // 每月平均訂貨(萬)
+        const orders = Math.round(avg * months);
+        const pickup = Math.round(orders * 0.95);
+        map[id] = { orders, pickup, months };
+      }
+      return map;
+    }
+    export async function getLevelsAt(memberIds, endTs){
+      // MVP：用靜態層級；未來依 endTs 從歷史表取。
+      const lvMap = {};
+      // 走訪 treeData 建映射
+      (function walk(n){ lvMap[n.id]=n.level; (n.children||[]).forEach(walk); })(treeData);
+      const out = {}; for(const id of memberIds) out[id]=lvMap[id]||""; return out;
+    }
+  </script>
+
+  <!-- App -->
+  <script type="module">
+    import { getTreeRoot, getChildren, getPerf, getLevelsAt } from '#data-provider';
+
+    // ====== State ======
+    let root, treeLayout, g, i=0; // d3 state
+    let currentStart = '2025-01-01';
+    let currentEnd   = '2025-08-15';
+    const perfCache = new Map(); // key: id|d1|d2 -> {orders,pickup,months}
+
+    // ====== SVG ======
+    const margin = {top:40,right:40,bottom:40,left:40};
+    const width  = 1200 - margin.left - margin.right;
+    const height = 700  - margin.top  - margin.bottom;
+
+    const svg = d3.select('#chart').append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom);
+    g = svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+    treeLayout = d3.tree().size([width, height]);
+
+    // ====== Init ======
+    document.getElementById('btnApply').addEventListener('click', () => {
+      const s = (document.getElementById('startDate')).value;
+      const e = (document.getElementById('endDate')).value;
+      if(!s||!e) return alert('請選擇完整的日期區間');
+      if(new Date(s) > new Date(e)) return alert('開始日期不能晚於結束日期');
+      currentStart = s; currentEnd = e; refreshVisiblePerf();
+    });
+
+    init();
+
+    async function init(){
+      const data = await getTreeRoot();
+      root = d3.hierarchy(data, d => d.children);
+      // 預設收合子節點
+      root.children?.forEach(collapse);
+      root.x0 = width/2; root.y0 = 0;
+      await refreshVisiblePerf();
+      update(root);
+      updateSummary();
+    }
+
+    function collapse(d){ if(d.children){ d._children=d.children; d._children.forEach(collapse); d.children=null; } }
+
+    function isHighPerformer(d){ const p=d.data.performance; return p && p.months && (p.orders/p.months) >= 50; }
+
+    // 核心：依可視節點批次拉資料（這裡打 mock；未來接後端不改呼叫點）
+    async function refreshVisiblePerf(){
+      const nodes = treeLayout(root).descendants();
+      const visible = nodes.map(n=>n.data.id);
+      const keyOf = id => `${id}|${currentStart}|${currentEnd}`;
+      const need = visible.filter(id => !perfCache.has(keyOf(id)));
+      if(need.length){
+        const map = await getPerf(need, currentStart, currentEnd);
+        for(const id of need){ perfCache.set(keyOf(id), map[id] || {orders:0,pickup:0,months:1}); }
+      }
+      // 把快取回寫到節點資料，供渲染
+      for(const n of nodes){ const k=keyOf(n.data.id); n.data.performance = perfCache.get(k) || {orders:0,pickup:0,months:1}; }
+    }
+
+    function update(source){
+      const treeData = treeLayout(root);
+      const nodes = treeData.descendants();
+      const links = treeData.descendants().slice(1);
+      nodes.forEach(d => d.y = d.depth * 150);
+
+      // nodes
+      const node = g.selectAll('.node').data(nodes, d => d.id || (d.id=++i));
+      const enter = node.enter().append('g')
+        .attr('class', d => {
+          let cls='node'; if(d._children) cls+=' collapsed'; if(isHighPerformer(d)) cls+=' high-performer'; return cls;
+        })
+        .attr('transform', d=>`translate(${source.x0},${source.y0})`)
+        .on('click', async (event,d)=>{ toggle(d); await refreshVisiblePerf(); update(d); updateSummary(); });
+
+      enter.append('circle').attr('r',1e-6);
+      enter.append('text').attr('class','name-text').attr('dy','-2.5em').text(d=>d.data.name);
+      enter.append('text').attr('class','level-text').attr('dy','-1.2em').text(d=>d.data.level||'');
+      enter.append('text').attr('class','orders-text').attr('dy','1.8em').text(d=>`訂貨: ${(d.data.performance?.orders||0)}萬`);
+      enter.append('text').attr('class','pickup-text').attr('dy','3.0em').text(d=>`提貨: ${(d.data.performance?.pickup||0)}萬`);
+
+      const updateSel = enter.merge(node);
+      updateSel.transition().duration(600).attr('transform', d=>`translate(${d.x},${d.y})`);
+      updateSel.select('circle')
+        .attr('r',8)
+        .style('fill', d=> d._children? '#e74c3c' : isHighPerformer(d)? '#f39c12' : '#3498db')
+        .style('stroke', d=> d._children? '#c0392b' : isHighPerformer(d)? '#e67e22' : '#2980b9');
+
+      updateSel.select('.orders-text').text(d=>`訂貨: ${(d.data.performance?.orders||0)}萬`);
+      updateSel.select('.pickup-text').text(d=>`提貨: ${(d.data.performance?.pickup||0)}萬`);
+
+      const exit = node.exit().transition().duration(600)
+        .attr('transform', d=>`translate(${source.x},${source.y})`).remove();
+      exit.select('circle').attr('r',1e-6); exit.select('text').style('fill-opacity',1e-6);
+
+      // links
+      const link = g.selectAll('.link').data(links, d=>d.id);
+      const linkEnter = link.enter().insert('path','g').attr('class','link')
+        .attr('d', d=> { const o={x:source.x0,y:source.y0}; return diagonal(o,o); });
+      linkEnter.merge(link).transition().duration(600).attr('d', d=> diagonal(d,d.parent));
+      link.exit().transition().duration(600).attr('d', d=>{ const o={x:source.x,y:source.y}; return diagonal(o,o); }).remove();
+
+      nodes.forEach(d=>{ d.x0=d.x; d.y0=d.y; });
+    }
+
+    function toggle(d){ if(d.children){ d._children=d.children; d.children=null; } else { d.children=d._children; d._children=null; } }
+
+    function diagonal(s,d){
+      return `M ${s.x} ${s.y} C ${s.x} ${(s.y+d.y)/2}, ${d.x} ${(s.y+d.y)/2}, ${d.x} ${d.y}`;
+    }
+
+    function updateSummary(){
+      let totalOrders=0, totalPickup=0, totalMembers=0, high=0;
+      (function walk(n){ totalMembers++; const p=n.data.performance||{orders:0,pickup:0,months:1}; totalOrders+=p.orders; totalPickup+=p.pickup; if((p.orders/p.months)>=50) high++; (n.children||[]).forEach(walk); })(root);
+      document.getElementById('totalOrders').textContent = totalOrders.toLocaleString();
+      document.getElementById('totalPickup').textContent = totalPickup.toLocaleString();
+      document.getElementById('totalMembers').textContent = totalMembers;
+      document.getElementById('highPerformers').textContent = high;
+    }
+  </script>
+</body>
+</html>
