@@ -52,7 +52,7 @@
           .dot-dealer { background:#5582b4; border-color:#3f668e; }   /* 經銷商 */
           .dot-level  { background:#f7959d; border-color:#d86a74; }   /* 高/中/初級 */
           .dot-normal { background:#deabe9; border-color:#b687c8; }   /* 一般 */
-          .dot-high   { background:#ffffff; border-color:#e67e22; }   /* 高業績 */
+          .dot-high   { background:#ffffff; border-color:#fff600; }   /* 高業績 */
         </style>
 
         <div>
@@ -137,6 +137,12 @@
       T104:78,U008:28,U009:35,U010:33
     };
 
+    const memberJoinedAt = {
+      CEO001: '2023-01-01',
+      R001: '2024-03-15',
+      // ... 其餘成員
+    };
+    
     window.DataProvider = {
       async getTreeRoot(){ return structuredClone(treeData); },
       async getPerf(ids,s,e){
