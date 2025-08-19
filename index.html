@@ -158,7 +158,7 @@
       currentStart=s; currentEnd=e; refreshVisiblePerf().then(()=>{ update(root); updateSummary(); });
     });
     document.getElementById('btnSearch').addEventListener('click', applySearch);
-    document.getElementById('btnClear').addEventListener('click', ()=>{ highlightIds=null; update(root); });
+    document.getElementById('btnClear').addEventListener('click', () => {allowedTopSet=null; update(root); updateSummary();
 
     init();
     async function init(){
@@ -189,6 +189,12 @@
       for(const n of visible) n.data.performance=perfCache.get(key(n.data.id));
     }
 
+    function getVisibleNodes() {
+      const arr = [];
+      collectVisible(root, arr); // 只收集展開中的節點
+      return arr;
+    }
+    
     // ===== 搜尋：命中者的所有祖先 + 所有子孫 =====
     let highlightIds=null; // Set<string>|null
     function applySearch(){
@@ -208,6 +214,7 @@
       keep.delete('ROOT');
       highlightIds=keep;
       update(root);
+      updateSummary(); // ← 新增
     }
     const shouldDim = (d)=> {
       if(!highlightIds) return false;
@@ -273,25 +280,30 @@
     function diagonal(s,d){ return `M ${s.x} ${s.y} C ${s.x} ${(s.y+d.y)/2}, ${d.x} ${(s.y+d.y)/2}, ${d.x} ${d.y}`; }
 
     function updateSummary(){
-      let totalOrders=0,totalPickup=0,totalMembers=0,high=0;
-      (function walk(n){
-        (n.children||n._children||[]).forEach(walk);
-        if(n.depth===0) return;
-        totalMembers++;
-        const p=n.data.performance||{orders:0,pickup:0,months:1};
-        totalOrders+=p.orders; totalPickup+=p.pickup;
-        if((p.orders/p.months)>=50) high++;
-      })(root);
-      totalOrders=+totalOrders; totalPickup=+totalPickup;
-      totalOrders=isFinite(totalOrders)?totalOrders:0;
-      totalPickup=isFinite(totalPickup)?totalPickup:0;
-      totalMembers=isFinite(totalMembers)?totalMembers:0;
-      high=isFinite(high)?high:0;
-      document.getElementById('totalOrders').textContent=totalOrders.toLocaleString();
-      document.getElementById('totalPickup').textContent=totalPickup.toLocaleString();
-      document.getElementById('totalMembers').textContent=totalMembers;
-      document.getElementById('highPerformers').textContent=high;
-    }
+      // 先取可見節點
+      let nodes = getVisibleNodes();
+
+     // 若正在搜尋，只統計未被透明化者（shouldDim=false）
+     if (allowedTopSet) {
+       nodes = nodes.filter(d => !shouldDim(d));
+     }
+
+     let totalOrders = 0, totalPickup = 0, totalMembers = 0, high = 0;
+
+     for (const n of nodes) {
+       if (n.depth === 0) continue; // 忽略虛擬 ROOT
+       totalMembers++;
+       const p = n.data.performance || {orders:0, pickup:0, months:1};
+       totalOrders += p.orders;
+       totalPickup += p.pickup;
+       if ((p.orders / p.months) >= 50) high++;
+     }
+
+     document.getElementById('totalOrders').textContent = totalOrders.toLocaleString();
+     document.getElementById('totalPickup').textContent = totalPickup.toLocaleString();
+     document.getElementById('totalMembers').textContent = totalMembers;
+     document.getElementById('highPerformers').textContent = high;
+   }
   </script>
 </body>
 </html>
