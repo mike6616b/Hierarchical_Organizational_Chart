@@ -47,9 +47,20 @@
     <div class="chart-container">
       <div class="instructions">
         📊 使用日期區間與搜尋人名。等級配色：
-        <b style="color:#5582b4">經銷商</b>、<b style="color:#f7959d">高/中/初級</b>、<b style="color:#deabe9">一般</b>；
-        <b style="color:#f39c12">🟡 邊框加粗代表高業績（月均訂貨 ≥ 50萬）</b>。
-      </div>
+        <style>
+          .dot { display:inline-block; width:12px; height:12px; border-radius:50%; border:2px solid; vertical-align:middle; }
+          .dot-dealer { background:#5582b4; border-color:#3f668e; }   /* 經銷商 */
+          .dot-level  { background:#f7959d; border-color:#d86a74; }   /* 高/中/初級 */
+          .dot-normal { background:#deabe9; border-color:#b687c8; }   /* 一般 */
+          .dot-high   { background:#f39c12; border-color:#e67e22; }   /* 高業績 */
+        </style>
+
+        <div>
+          <span class="dot dot-dealer"></span> 經銷商　
+          <span class="dot dot-level"></span> 高/中/初級　
+          <span class="dot dot-normal"></span> 一般　
+          <span class="dot dot-high"></span> 高業績（月均訂貨 ≥ 50萬）
+        </div>
       <div id="chart"></div>
       <div class="stats-summary">
         <div class="stat-item"><span class="stat-value" id="totalOrders">0</span><span class="stat-label">總訂貨金額 (萬元)</span></div>
@@ -61,6 +72,7 @@
   </div>
 
   <script>
+    // ------- Mock data -------
     const treeData = {
       id:'ROOT', name:'ROOT', level:'ROOT', children:[
         { id:'CEO001', name:'林執行長', level:'經銷商', children:[
@@ -151,20 +163,26 @@
     g=svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
     treeLayout=d3.tree().size([width,height]);
 
+    // === 事件 ===
     document.getElementById('btnApply').addEventListener('click',()=>{
       const s=startDate.value, e=endDate.value;
       if(!s||!e) return alert('請選擇完整的日期區間');
       if(new Date(s)>new Date(e)) return alert('開始日期不能晚於結束日期');
-      currentStart=s; currentEnd=e; refreshVisiblePerf().then(()=>{ update(root); updateSummary(); });
+      currentStart=s; currentEnd=e;
+      refreshVisiblePerf().then(()=>{ update(root); updateSummary(); });
     });
-    document.getElementById('btnSearch').addEventListener('click', applySearch);
-    document.getElementById('btnClear').addEventListener('click', () => {allowedTopSet=null; update(root); updateSummary();
 
+    document.getElementById('btnSearch').addEventListener('click', ()=>{ applySearch(); });
+    document.getElementById('btnClear').addEventListener('click', ()=>{
+      highlightIds=null; update(root); updateSummary();
+    });
+
+    // === 初始化 ===
     init();
     async function init(){
       const data=await getTreeRoot();
       root=d3.hierarchy(data,d=>d.children);
-      root.children?.forEach(collapse); // 預設收合兩大主線
+      root.children?.forEach(collapse); // 兩條主線預設收合
       root.x0=width/2; root.y0=0;
       await refreshVisiblePerf(); update(root); updateSummary();
     }
@@ -174,11 +192,13 @@
     function levelFill(l){ if(l==='經銷商')return'#5582b4'; if(l==='高級'||l==='中級'||l==='初級')return'#f7959d'; if(l==='一般')return'#deabe9'; return'#ccc'; }
     function levelStroke(l){ if(l==='經銷商')return'#3f668e'; if(l==='高級'||l==='中級'||l==='初級')return'#d86a74'; if(l==='一般')return'#b687c8'; return'#999'; }
 
+    // 只收集目前可見節點（展開中的）
     function collectVisible(n,out){ if(n.depth>0) out.push(n); if(n.children) n.children.forEach(c=>collectVisible(c,out)); }
+    function getVisibleNodes(){ const arr=[]; collectVisible(root,arr); return arr; }
 
     async function refreshVisiblePerf(){
       treeLayout(root);
-      const visible=[]; collectVisible(root,visible);
+      const visible=getVisibleNodes();
       const ids=visible.map(n=>n.data.id);
       const key=id=>`${id}|${currentStart}|${currentEnd}`;
       const need=ids.filter(id=>!perfCache.has(key(id)));
@@ -189,53 +209,42 @@
       for(const n of visible) n.data.performance=perfCache.get(key(n.data.id));
     }
 
-    function getVisibleNodes() {
-      const arr = [];
-      collectVisible(root, arr); // 只收集展開中的節點
-      return arr;
-    }
-    
-    // ===== 搜尋：命中者的所有祖先 + 所有子孫 =====
+    // ===== 搜尋：命中者的所有祖先 + 所有子孫（未被淡化者保留） =====
     let highlightIds=null; // Set<string>|null
     function applySearch(){
       const q=(searchName.value||'').trim();
-      if(!q){ highlightIds=null; update(root); return; }
-      // 建立所有節點索引
+      if(!q){ highlightIds=null; update(root); updateSummary(); return; }
+
+      // 建索引（含未展開子孫）
       const all=[]; (function walk(n){ all.push(n); (n.children||[]).forEach(walk); (n._children||[]).forEach(walk); })(root);
       const hits=all.filter(n=> (n.data.name||'').includes(q));
-      if(!hits.length){ highlightIds=new Set(); update(root); return; }
+      if(!hits.length){ highlightIds=new Set(); update(root); updateSummary(); return; }
+
       const keep=new Set();
-      const addAncestors=(n)=>{ let cur=n; while(cur){ keep.add(cur.data.id); cur=cur.parent; } };
-      const addDescendants=(n)=>{ (function dfs(x){ keep.add(x.data.id);
-        (x.children||[]).forEach(dfs); (x._children||[]).forEach(dfs);
-      })(n); };
-      for(const h of hits){ addAncestors(h); addDescendants(h); }
-      // 不把虛擬 ROOT 放進集合
+      const addAnc=(n)=>{ let cur=n; while(cur){ keep.add(cur.data.id); cur=cur.parent; } };
+      const addDesc=(n)=>{ (function dfs(x){ keep.add(x.data.id); (x.children||[]).forEach(dfs); (x._children||[]).forEach(dfs); })(n); };
+      for(const h of hits){ addAnc(h); addDesc(h); }
       keep.delete('ROOT');
       highlightIds=keep;
-      update(root);
-      updateSummary(); // ← 新增
+      update(root); updateSummary();
     }
-    const shouldDim = (d)=> {
-      if(!highlightIds) return false;
-      return !highlightIds.has(d.data.id);
-    };
+    const shouldDim=(d)=>{ if(!highlightIds) return false; return !highlightIds.has(d.data.id); };
 
     const topAncestorId=(n)=>{ let cur=n; while(cur.parent && cur.parent.depth>0) cur=cur.parent; return cur.data.id; };
 
     function update(source){
       treeLayout(root);
-      const nodes=[]; collectVisible(root,nodes);
+      const nodes=getVisibleNodes();
       nodes.forEach(d=>{ d.y=d.depth*150; d.topId=topAncestorId(d); });
 
-      // 只畫「非虛擬 ROOT 之下的連線」→ 起點不會有上方的線
+      // 不畫虛擬 ROOT 的連線
       const links=nodes.filter(d=>d.parent && d.parent.depth>0);
 
-      // NODES
       const node=g.selectAll('.node').data(nodes, d=>d.data.id);
       const enter=node.enter().append('g').attr('class','node')
         .attr('transform', d=>`translate(${source.x0||0},${source.y0||0})`)
         .on('click', async (evt,d)=>{ toggle(d); await refreshVisiblePerf(); update(d); updateSummary(); });
+
       enter.append('circle').attr('r',8);
       enter.append('text').attr('class','name-text').attr('dy','-2.5em').text(d=>d.data.name);
       enter.append('text').attr('class','level-text').attr('dy','-1.2em').text(d=>d.data.level||'');
@@ -256,7 +265,6 @@
       node.exit().transition().duration(400)
         .attr('transform', d=>`translate(${source.x||0},${source.y||0})`).remove();
 
-      // LINKS
       const link=g.selectAll('.link').data(links, d=>d.data.id);
       const linkEnter=link.enter().insert('path','g').attr('class','link')
         .attr('d', d=>{ const o={x:source.x0||0,y:source.y0||0}; return diagonal(o,o); });
@@ -264,7 +272,6 @@
         .attr('d', d=> diagonal(d,d.parent))
         .style('opacity', d=> {
           if(!highlightIds) return 1;
-          // 兩端任一不在 keep 集合 → 透明
           return (highlightIds.has(d.data.id) && highlightIds.has(d.parent.data.id)) ? 1 : .5;
         });
       link.exit().transition().duration(400)
@@ -279,31 +286,24 @@
     }
     function diagonal(s,d){ return `M ${s.x} ${s.y} C ${s.x} ${(s.y+d.y)/2}, ${d.x} ${(s.y+d.y)/2}, ${d.x} ${d.y}`; }
 
+    // === 摘要：無搜尋→所有可見；有搜尋→未半透明 ===
     function updateSummary(){
-      // 先取可見節點
-      let nodes = getVisibleNodes();
+      let nodes=getVisibleNodes();
+      if (highlightIds) nodes = nodes.filter(d => !shouldDim(d));
 
-     // 若正在搜尋，只統計未被透明化者（shouldDim=false）
-     if (allowedTopSet) {
-       nodes = nodes.filter(d => !shouldDim(d));
-     }
-
-     let totalOrders = 0, totalPickup = 0, totalMembers = 0, high = 0;
-
-     for (const n of nodes) {
-       if (n.depth === 0) continue; // 忽略虛擬 ROOT
-       totalMembers++;
-       const p = n.data.performance || {orders:0, pickup:0, months:1};
-       totalOrders += p.orders;
-       totalPickup += p.pickup;
-       if ((p.orders / p.months) >= 50) high++;
-     }
-
-     document.getElementById('totalOrders').textContent = totalOrders.toLocaleString();
-     document.getElementById('totalPickup').textContent = totalPickup.toLocaleString();
-     document.getElementById('totalMembers').textContent = totalMembers;
-     document.getElementById('highPerformers').textContent = high;
-   }
+      let totalOrders=0,totalPickup=0,totalMembers=0,high=0;
+      for(const n of nodes){
+        if(n.depth===0) continue;
+        totalMembers++;
+        const p=n.data.performance||{orders:0,pickup:0,months:1};
+        totalOrders+=p.orders; totalPickup+=p.pickup;
+        if((p.orders/p.months)>=50) high++;
+      }
+      document.getElementById('totalOrders').textContent=totalOrders.toLocaleString();
+      document.getElementById('totalPickup').textContent=totalPickup.toLocaleString();
+      document.getElementById('totalMembers').textContent=totalMembers;
+      document.getElementById('highPerformers').textContent=high;
+    }
   </script>
 </body>
 </html>
