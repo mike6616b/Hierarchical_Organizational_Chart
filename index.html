@@ -248,8 +248,26 @@
       enter.append('circle').attr('r',8);
       enter.append('text').attr('class','name-text').attr('dy','-2.5em').text(d=>d.data.name);
       enter.append('text').attr('class','level-text').attr('dy','-1.2em').text(d=>d.data.level||'');
-      enter.append('text').attr('class','orders-text').attr('dy','1.8em').text(d=>`訂貨: ${(d.data.performance?.orders||0)}萬`);
-      enter.append('text').attr('class','pickup-text').attr('dy','3.0em').text(d=>`提貨: ${(d.data.performance?.pickup||0)}萬`);
+     
+      // 建立「訂貨」文字  //
+      enter.append('text')
+        .attr('class', 'orders-text')
+        .attr('dy', '1.8em')
+        .text(d => {
+          const p = d.data.performance || {orders:0, months:1};
+          const avg = p.orders / (p.months || 1);
+          return `訂：${Math.round(p.orders)}萬 (月均${Math.round(avg)}萬)`;  // ★
+        });
+     
+      // 建立「提貨」文字  //
+      enter.append('text')
+        .attr('class', 'pickup-text')
+        .attr('dy', '3.0em')
+        .text(d => {
+          const p = d.data.performance || {pickup:0, months:1};
+          const avg = p.pickup / (p.months || 1);
+          return `提：${Math.round(p.pickup)}萬 (月均${Math.round(avg)}萬)`;
+      });
 
       const merged=enter.merge(node);
       merged.transition().duration(600).attr('transform', d=>`translate(${d.x},${d.y})`);
@@ -258,8 +276,23 @@
         .style('fill', d=>levelFill(d.data.level))
         .style('stroke-width', d=>isHighPerformer(d)?3:2)
         .style('stroke', d=>isHighPerformer(d)?'#e67e22':levelStroke(d.data.level));
-      merged.select('.orders-text').text(d=>`訂貨: ${(d.data.performance?.orders||0)}萬`);
-      merged.select('.pickup-text').text(d=>`提貨: ${(d.data.performance?.pickup||0)}萬`);
+  
+      // 更新「訂貨」  //
+      merged.select('.orders-text')
+        .text(d => {
+          const p = d.data.performance || {orders:0, months:1};
+          const avg = p.orders / (p.months || 1);
+          return `訂：${Math.round(p.orders)}萬 (月均${Math.round(avg)}萬)`;  // ★
+        });
+      
+      // 更新「提貨」  //
+      merged.select('.pickup-text')
+        .text(d => {
+          const p = d.data.performance || {pickup:0, months:1};
+          const avg = p.pickup / (p.months || 1);
+          return `提：${Math.round(p.pickup)}萬 (月均${Math.round(avg)}萬)`;  // ★
+        });
+      
       merged.style('opacity', d=> shouldDim(d)? .5 : 1);
 
       node.exit().transition().duration(400)
