@@ -1,71 +1,74 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>組織架構圖 MVP</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<style>
-:root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; }
-* { box-sizing:border-box }
-body { margin:0; font-family:'Microsoft JhengHei', system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg) }
-.container { max-width:1400px; margin:16px auto; background:var(--card); border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.08); overflow:hidden }
-.header { position:relative; padding:20px; color:#fff; background:linear-gradient(135deg,#2c3e50 0%,#3498db 100%) }
-.header h1 { margin:0 0 6px; font-size:22px }
-.header p { margin:0; opacity:.9 }
-.date-filter { position:absolute; top:16px; right:16px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); backdrop-filter:blur(10px); border-radius:10px; padding:10px }
-.date-filter input[type="date"], .date-filter input[type="text"] { width:160px; padding:8px; border:none; border-radius:6px; background:rgba(255,255,255,.95); font-size:12px }
-.date-filter button { padding:8px 12px; border:none; border-radius:6px; background:#27ae60; color:#fff; font-size:12px; cursor:pointer }
-.date-filter button:hover { filter:brightness(.95) }
-.chart-container { padding:16px; text-align:center }
-.instructions { background:linear-gradient(135deg,#e8f5e8 0%,#f0f8ff 100%); border:1px solid #27ae60; color:var(--ink); padding:12px; border-radius:10px; margin:0 0 12px; font-size:13px; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>組織架構圖 MVP</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    :root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; }
+    * { box-sizing:border-box }
+    body { margin:0; font-family:'Microsoft JhengHei', system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg) }
+    .container { max-width:1400px; margin:16px auto; background:var(--card); border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,.08); overflow:hidden }
+    .header { position:relative; padding:20px; color:#fff; background:linear-gradient(135deg,#2c3e50 0%,#3498db 100%) }
+    .header h1 { margin:0 0 6px; font-size:22px }
+    .header p { margin:0; opacity:.9 }
+    .date-filter { position:absolute; top:16px; right:16px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); backdrop-filter:blur(10px); border-radius:10px; padding:10px }
+    .date-filter input[type="date"], .date-filter input[type="text"] { width:160px; padding:8px; border:none; border-radius:6px; background:rgba(255,255,255,.95); font-size:12px }
+    .date-filter button { padding:8px 12px; border:none; border-radius:6px; background:#27ae60; color:#fff; font-size:12px; cursor:pointer }
+    .date-filter button:hover { filter:brightness(.95) }
+    .chart-container { padding:16px; text-align:center }
+    .instructions { background:linear-gradient(135deg,#e8f5e8 0%,#f0f8ff 100%); border:1px solid #27ae60; color:var(--ink); padding:12px; border-radius:10px; margin:0 0 12px; font-size:13px; }
 
+    .stats-summary { display:flex; justify-content:space-around; gap:8px; flex-wrap:wrap; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; padding:14px; border-radius:10px; margin-top:12px }
+    .stat-item { text-align:center }
+    .stat-value { font-size:22px; font-weight:800; display:block }
+    .stat-label { font-size:12px; opacity:.9 }
 
-.stats-summary { display:flex; justify-content:space-around; gap:8px; flex-wrap:wrap; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; padding:14px; border-radius:10px; margin-top:12px }
-.stat-item { text-align:center }
-.stat-value { font-size:22px; font-weight:800; display:block }
-.stat-label { font-size:12px; opacity:.9 }
+    .node circle { stroke-width:2px; transition:all .25s ease }
+    .node circle:hover { transform:scale(1.08) }
+    .node text { fill:var(--ink); text-anchor:middle; pointer-events:none }
+    .name-text { font-weight:700; font-size:14px; dominant-baseline:middle }
+    .level-text { font-size:11px; color:var(--muted); dominant-baseline:middle }
+    .orders-text { font-size:10px; fill:#27ae60; font-weight:700; dominant-baseline:middle }
+    .pickup-text { font-size:10px; fill:#8e44ad; font-weight:700; dominant-baseline:middle }
 
-
-.node circle { stroke-width:2px; transition:all .25s ease }
-.node circle:hover { transform:scale(1.08) }
-.node text { fill:var(--ink); text-anchor:middle; pointer-events:none }
-.name-text { font-weight:700; font-size:14px; dominant-baseline:middle }
-.level-text { font-size:11px; color:var(--muted); dominant-baseline:middle }
-.orders-text { font-size:10px; fill:#27ae60; font-weight:700; dominant-baseline:middle }
-.pickup-text { font-size:10px; fill:#8e44ad; font-weight:700; dominant-baseline:middle }
-
-
-.link { fill:none; stroke:#bdc3c7; stroke-width:2px; stroke-opacity:.85 }
-</style>
+    .link { fill:none; stroke:#bdc3c7; stroke-width:2px; stroke-opacity:.85 }
+  </style>
 </head>
 <body>
-<div class="container">
-<div class="header">
-<h1>組織架構圖</h1>
-<p>點擊節點展開下線組織，查看各階段業績表現</p>
-<div class="date-filter">
-<input type="date" id="startDate" value="2025-01-01" />
-<input type="date" id="endDate" value="2025-08-15" />
-<button id="btnApply">更新數據</button>
-<input type="text" id="searchName" placeholder="搜尋人名" />
-<button id="btnSearch" style="background:#3b82f6">搜尋</button>
-<button id="btnClear" style="background:#6b7280">清除</button>
-</div>
-</div>
+  <div class="container">
+    <div class="header">
+      <h1>組織架構圖</h1>
+      <p>點擊節點展開下線組織，查看各階段業績表現</p>
+      <div class="date-filter">
+        <input type="date" id="startDate" value="2025-01-01" />
+        <input type="date" id="endDate" value="2025-08-15" />
+        <button id="btnApply">更新數據</button>
+        <input type="text" id="searchName" placeholder="搜尋人名" />
+        <button id="btnSearch" style="background:#3b82f6">搜尋</button>
+        <button id="btnClear" style="background:#6b7280">清除</button>
+      </div>
+    </div>
 
-
-<div class="chart-container">
-<!-- ✅ 用下方說明欄取代 legend -->
-<div class="instructions">
-📊 使用日期區間與搜尋人名。等級配色：
-<span style="color:#5582b4;font-weight:bold;">經銷商</span>、
-<span style="color:#f7959d;font-weight:bold;">高/中/初級</span>、
-<span style="color:#deabe9;font-weight:bold;">一般</span>；
-<span style="color:#f39c12;font-weight:bold;">🟡 邊框加粗代表高業績（月均訂貨 ≥ 50萬）</span>。
-</div>
-<div id="chart"></div>
-</div>
+    <div class="chart-container">
+      <!-- 用下方說明欄取代 legend -->
+      <div class="instructions">
+        📊 使用日期區間與搜尋人名。等級配色：
+        <span style="color:#5582b4;font-weight:bold;">經銷商</span>、
+        <span style="color:#f7959d;font-weight:bold;">高/中/初級</span>、
+        <span style="color:#deabe9;font-weight:bold;">一般</span>；
+        <span style="color:#f39c12;font-weight:bold;">🟡 邊框加粗代表高業績（月均訂貨 ≥ 50萬）</span>。
+      </div>
+      <div id="chart"></div>
+      <div class="stats-summary">
+        <div class="stat-item"><span class="stat-value" id="totalOrders">0</span><span class="stat-label">總訂貨金額 (萬元)</span></div>
+        <div class="stat-item"><span class="stat-value" id="totalPickup">0</span><span class="stat-label">總提貨金額 (萬元)</span></div>
+        <div class="stat-item"><span class="stat-value" id="totalMembers">0</span><span class="stat-label">組織總人數</span></div>
+        <div class="stat-item"><span class="stat-value" id="highPerformers">0</span><span class="stat-label">高業績會員</span></div>
+      </div>
+    </div>
+  </div>
 
   <!-- Data (mock) + API onto window -->
   <script>
@@ -162,7 +165,7 @@ body { margin:0; font-family:'Microsoft JhengHei', system-ui, -apple-system, Seg
     const { getTreeRoot, getPerf } = window.DataProvider;
 
     // d3 狀態
-    let root, treeLayout, g, idSeq=0;
+    let root, treeLayout, g;
     let currentStart='2025-01-01', currentEnd='2025-08-15';
     const perfCache = new Map(); // key: id|d1|d2
 
@@ -198,7 +201,13 @@ body { margin:0; font-family:'Microsoft JhengHei', system-ui, -apple-system, Seg
       update(root); updateSummary();
     }
 
-    function collapse(d){ if(d.children){ d._children=d.children; d._children.forEach(collapse); d.children=null; } }
+    function collapse(d){
+      if(d.children){
+        d._children = d.children;
+        d._children.forEach(collapse); // 深度收合，確保孫節點也隱藏
+        d.children = null;
+      }
+    }
 
     function isHighPerformer(d){ const p=d.data.performance; return p && p.months && (p.orders/p.months) >= 50; }
 
@@ -239,7 +248,8 @@ body { margin:0; font-family:'Microsoft JhengHei', system-ui, -apple-system, Seg
       const links = nodes.filter(d=>d.parent && d.parent.depth>0);
       nodes.forEach(d=>{ d.y=d.depth*150; d.topId = topAncestorId(d); });
 
-      const node = g.selectAll('.node').data(nodes, d=>d.uid || (d.uid=++idSeq));
+      // 使用資料 id 作為 key，避免殘留
+      const node = g.selectAll('.node').data(nodes, d=>d.data.id);
       const enter = node.enter().append('g').attr('class','node')
         .attr('transform', d=>`translate(${source.x0||0},${source.y0||0})`)
         .on('click', async (evt,d)=>{ toggle(d); await refreshVisiblePerf(); update(d); updateSummary(); });
@@ -261,18 +271,30 @@ body { margin:0; font-family:'Microsoft JhengHei', system-ui, -apple-system, Seg
       merged.select('.pickup-text').text(d=>`提貨: ${(d.data.performance?.pickup||0)}萬`);
       merged.style('opacity', d=> shouldDim(d)? .5 : 1);
 
-      const link = g.selectAll('.link').data(links, d=>d.lid || (d.lid=++idSeq));
+      const link = g.selectAll('.link').data(links, d=>d.data.id); // 以子節點 id 當作 link key
       const linkEnter = link.enter().insert('path','g').attr('class','link')
         .attr('d', d=> { const o={x:source.x0||0,y:source.y0||0}; return diagonal(o,o); });
       linkEnter.merge(link).transition().duration(600)
         .attr('d', d=> diagonal(d,d.parent))
         .style('opacity', d=> shouldDim(d)? .5 : 1);
-      link.exit().transition().duration(600).attr('d', d=>{ const o={x:source.x||0,y:source.y||0}; return diagonal(o,o); }).remove();
+      link.exit().transition().duration(600)
+        .attr('d', d=>{ const o={x:source.x||0,y:source.y||0}; return diagonal(o,o); })
+        .remove();
 
       nodes.forEach(d=>{ d.x0=d.x; d.y0=d.y; });
     }
 
-    function toggle(d){ if(d.children){ d._children=d.children; d.children=null; } else { d.children=d._children; d._children=null; } }
+    function toggle(d){
+      if(d.children){
+        // 關閉時，遞迴收合所有子孫，避免殘留在畫面上
+        d._children = d.children;
+        d._children.forEach(collapse);
+        d.children = null;
+      } else {
+        d.children = d._children;
+        d._children = null;
+      }
+    }
     function diagonal(s,d){ return `M ${s.x} ${s.y} C ${s.x} ${(s.y+d.y)/2}, ${d.x} ${(s.y+d.y)/2}, ${d.x} ${d.y}`; }
 
     function updateSummary(){
