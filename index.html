@@ -59,7 +59,7 @@
           <span class="dot dot-dealer"></span> 經銷商　
           <span class="dot dot-level"></span> 高/中/初級　
           <span class="dot dot-normal"></span> 一般　
-          <span class="dot dot-high"></span> 高業績（月均訂貨 ≥ 212萬）
+          <span class="dot dot-high"></span> 高業績（月均訂貨 ≥ 106萬）
         </div>
       </div>
         
@@ -170,7 +170,7 @@
       .attr('height',height+margin.top+margin.bottom);
     g=svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
     treeLayout=d3.tree().size([width,height]);
-    const HIGH_THRESHOLD = 212;
+    const HIGH_THRESHOLD = 106;
 
     // === 事件 ===
     document.getElementById('btnApply').addEventListener('click',()=>{
