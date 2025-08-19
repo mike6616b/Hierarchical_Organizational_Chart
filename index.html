@@ -52,7 +52,6 @@
     </div>
 
     <div class="chart-container">
-      <!-- 用下方說明欄取代 legend -->
       <div class="instructions">
         📊 使用日期區間與搜尋人名。等級配色：
         <span style="color:#5582b4;font-weight:bold;">經銷商</span>、
@@ -72,185 +71,177 @@
 
   <!-- Data (mock) + API onto window -->
   <script>
-    // 兩條主線：林執行長、王超人
     const treeData = {
-      id: 'ROOT', name: 'ROOT', level: 'ROOT', children: [
-        {
-          id:'CEO001', name:'林執行長', level:'經銷商', children:[
-            { id:'R001', name:'王大名', level:'高級', children:[
-              { id:'T001', name:'李安亭', level:'中級', children:[
-                { id:'M001', name:'陳小美', level:'一般' },
-                { id:'M002', name:'張志明', level:'一般' },
-                { id:'M008', name:'侯雅慧', level:'初級' }
-              ]},
-              { id:'T002', name:'黃定和', level:'中級', children:[
-                { id:'M003', name:'劉大偉', level:'一般' },
-                { id:'M004', name:'周美麗', level:'初級' },
-                { id:'M009', name:'林亭安', level:'一般' }
-              ]}
+      id:'ROOT', name:'ROOT', level:'ROOT', children:[
+        { id:'CEO001', name:'林執行長', level:'經銷商', children:[
+          { id:'R001', name:'王大名', level:'高級', children:[
+            { id:'T001', name:'李安亭', level:'中級', children:[
+              { id:'M001', name:'陳小美', level:'一般' },
+              { id:'M002', name:'張志明', level:'一般' },
+              { id:'M008', name:'侯雅慧', level:'初級' }
             ]},
-            { id:'R002', name:'趙堅目', level:'高級', children:[
-              { id:'T003', name:'吳合', level:'中級', children:[
-                { id:'M005', name:'馮小強', level:'一般' },
-                { id:'M006', name:'蔡雅婷', level:'初級' }
-              ]},
-              { id:'T004', name:'許一二', level:'初級', children:[
-                { id:'M007', name:'謝小芬', level:'一般' },
-                { id:'M010', name:'楊信宏', level:'一般' }
-              ]}
+            { id:'T002', name:'黃定和', level:'中級', children:[
+              { id:'M003', name:'劉大偉', level:'一般' },
+              { id:'M004', name:'周美麗', level:'初級' },
+              { id:'M009', name:'林亭安', level:'一般' }
             ]}
-          ]
-        },
-        {
-          id:'LEAD200', name:'王超人', level:'經銷商', children:[
-            { id:'R101', name:'陳飛俠', level:'高級', children:[
-              { id:'T101', name:'高小龍', level:'中級', children:[
-                { id:'U001', name:'林小虎', level:'一般' },
-                { id:'U002', name:'彭美琪', level:'一般' },
-                { id:'U003', name:'宋湘怡', level:'初級' }
-              ]},
-              { id:'T102', name:'曾明慧', level:'初級', children:[
-                { id:'U004', name:'杜思妤', level:'一般' },
-                { id:'U005', name:'魏家豪', level:'一般' }
-              ]}
+          ]},
+          { id:'R002', name:'趙堅目', level:'高級', children:[
+            { id:'T003', name:'吳合', level:'中級', children:[
+              { id:'M005', name:'馮小強', level:'一般' },
+              { id:'M006', name:'蔡雅婷', level:'初級' }
             ]},
-            { id:'R102', name:'張宇宙', level:'中級', children:[
-              { id:'T103', name:'何青青', level:'初級', children:[
-                { id:'U006', name:'邱柏翰', level:'一般' },
-                { id:'U007', name:'連語瞳', level:'一般' }
-              ]},
-              { id:'T104', name:'賴思思', level:'中級', children:[
-                { id:'U008', name:'韓可欣', level:'初級' },
-                { id:'U009', name:'柯哲瑋', level:'一般' },
-                { id:'U010', name:'簡銘昌', level:'一般' }
-              ]}
+            { id:'T004', name:'許一二', level:'初級', children:[
+              { id:'M007', name:'謝小芬', level:'一般' },
+              { id:'M010', name:'楊信宏', level:'一般' }
             ]}
-          ]
-        }
+          ]}
+        ]},
+        { id:'LEAD200', name:'王超人', level:'經銷商', children:[
+          { id:'R101', name:'陳飛俠', level:'高級', children:[
+            { id:'T101', name:'高小龍', level:'中級', children:[
+              { id:'U001', name:'林小虎', level:'一般' },
+              { id:'U002', name:'彭美琪', level:'一般' },
+              { id:'U003', name:'宋湘怡', level:'初級' }
+            ]},
+            { id:'T102', name:'曾明慧', level:'初級', children:[
+              { id:'U004', name:'杜思妤', level:'一般' },
+              { id:'U005', name:'魏家豪', level:'一般' }
+            ]}
+          ]},
+          { id:'R102', name:'張宇宙', level:'中級', children:[
+            { id:'T103', name:'何青青', level:'初級', children:[
+              { id:'U006', name:'邱柏翰', level:'一般' },
+              { id:'U007', name:'連語瞳', level:'一般' }
+            ]},
+            { id:'T104', name:'賴思思', level:'中級', children:[
+              { id:'U008', name:'韓可欣', level:'初級' },
+              { id:'U009', name:'柯哲瑋', level:'一般' },
+              { id:'U010', name:'簡銘昌', level:'一般' }
+            ]}
+          ]}
+        ]}
       ]
     };
 
-    // 每月平均訂貨(萬)
     const perfProfile = {
-      CEO001: 420, R001: 180, T001: 95, M001: 48, M002: 26, M008: 32,
-      T002: 75,  M003: 22,  M004: 38, M009: 28,
-      R002: 130, T003: 70,  M005: 31, M006: 14,
-      T004: 58,  M007: 18, M010: 20,
-      LEAD200: 400, R101: 170, T101: 92, U001: 40, U002: 36, U003: 30,
-      T102: 55,  U004: 22,  U005: 24,
-      R102: 110, T103: 60,  U006: 26, U007: 20,
-      T104: 78,  U008: 28,  U009: 35, U010: 33
+      CEO001:420, R001:180, T001:95, M001:48, M002:26, M008:32,
+      T002:75,  M003:22,  M004:38, M009:28,
+      R002:130, T003:70,  M005:31, M006:14,
+      T004:58,  M007:18, M010:20,
+      LEAD200:400, R101:170, T101:92, U001:40, U002:36, U003:30,
+      T102:55,  U004:22,  U005:24,
+      R102:110, T103:60,  U006:26, U007:20,
+      T104:78,  U008:28,  U009:35, U010:33
     };
 
-    // 資料層 API（之後接後端時保留函式簽名）
     window.DataProvider = {
       async getTreeRoot(){ return structuredClone(treeData); },
-      async getPerf(memberIds, startDate, endDate){
-        const d1 = new Date(startDate), d2 = new Date(endDate);
-        const months = Math.max(1, (d2.getFullYear()-d1.getFullYear())*12 + (d2.getMonth()-d1.getMonth()) + 1);
-        const map = {};
-        for(const id of memberIds){
-          const avg = perfProfile[id] || 0;
-          const orders = Math.round(avg * months);
-          const pickup = Math.round(orders * 0.95);
-          map[id] = { orders, pickup, months };
+      async getPerf(ids, s, e){
+        const d1=new Date(s), d2=new Date(e);
+        const months=Math.max(1,(d2.getFullYear()-d1.getFullYear())*12+(d2.getMonth()-d1.getMonth())+1);
+        const map={};
+        for(const id of ids){
+          const avg=perfProfile[id]||0;
+          const orders=Math.round(avg*months);
+          const pickup=Math.round(orders*0.95);
+          map[id]={orders,pickup,months};
         }
         return map;
       }
     };
   </script>
 
-  <!-- App -->
   <script>
     const { getTreeRoot, getPerf } = window.DataProvider;
 
-    // d3 狀態
     let root, treeLayout, g;
     let currentStart='2025-01-01', currentEnd='2025-08-15';
-    const perfCache = new Map(); // key: id|d1|d2
+    const perfCache=new Map();
 
-    // 畫布（加大上邊距，避免頂部截切）
-    const margin = {top:120, right:40, bottom:40, left:40};
-    const width  = 1200 - margin.left - margin.right;
-    const height = 800  - margin.top  - margin.bottom;
-    const svg = d3.select('#chart').append('svg')
-      .attr('width', width + margin.left + margin.right)
-      .attr('height', height + margin.top + margin.bottom);
-    g = svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
-    treeLayout = d3.tree().size([width, height]);
+    const margin={top:120,right:40,bottom:40,left:40};
+    const width=1200-margin.left-margin.right;
+    const height=800-margin.top-margin.bottom;
+    const svg=d3.select('#chart').append('svg')
+      .attr('width', width+margin.left+margin.right)
+      .attr('height',height+margin.top+margin.bottom);
+    g=svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+    treeLayout=d3.tree().size([width,height]);
 
-    // 事件
-    document.getElementById('btnApply').addEventListener('click', () => {
-      const s = document.getElementById('startDate').value;
-      const e = document.getElementById('endDate').value;
+    document.getElementById('btnApply').addEventListener('click', ()=>{
+      const s=document.getElementById('startDate').value;
+      const e=document.getElementById('endDate').value;
       if(!s||!e) return alert('請選擇完整的日期區間');
-      if(new Date(s) > new Date(e)) return alert('開始日期不能晚於結束日期');
-      currentStart=s; currentEnd=e; refreshVisiblePerf().then(()=>{ update(root); updateSummary(); });
+      if(new Date(s)>new Date(e)) return alert('開始日期不能晚於結束日期');
+      currentStart=s; currentEnd=e;
+      refreshVisiblePerf().then(()=>{ update(root); updateSummary(); });
     });
     document.getElementById('btnSearch').addEventListener('click', applySearch);
-    document.getElementById('btnClear').addEventListener('click', () => { allowedTopSet=null; update(root); });
+    document.getElementById('btnClear').addEventListener('click', ()=>{ allowedTopSet=null; update(root); });
 
-    // 初始化
     init();
     async function init(){
-      const data = await getTreeRoot();
-      root = d3.hierarchy(data, d=>d.children);
+      const data=await getTreeRoot();
+      root=d3.hierarchy(data, d=>d.children);
       root.children?.forEach(collapse);
       root.x0=width/2; root.y0=0;
       await refreshVisiblePerf();
       update(root); updateSummary();
     }
 
-    function collapse(d){
-      if(d.children){
-        d._children = d.children;
-        d._children.forEach(collapse); // 深度收合，確保孫節點也隱藏
-        d.children = null;
+    function collapse(n){
+      if(n.children){
+        n._children=n.children;
+        n._children.forEach(collapse);
+        n.children=null;
       }
     }
 
-    function isHighPerformer(d){ const p=d.data.performance; return p && p.months && (p.orders/p.months) >= 50; }
+    function isHighPerformer(d){ const p=d.data.performance; return p && p.months && (p.orders/p.months)>=50; }
+    function levelFill(level){ if(level==='經銷商') return '#5582b4'; if(level==='高級'||level==='中級'||level==='初級') return '#f7959d'; if(level==='一般') return '#deabe9'; return '#ccc'; }
+    function levelStroke(level){ if(level==='經銷商') return '#3f668e'; if(level==='高級'||level==='中級'||level==='初級') return '#d86a74'; if(level==='一般') return '#b687c8'; return '#999'; }
 
-    function levelFill(level){ if(level==='經銷商') return '#5582b4'; if(level==='高級'||level==='中級'||level==='初級') return '#f7959d'; if(level==='一般') return '#deabe9'; return '#cccccc'; }
-    function levelStroke(level){ if(level==='經銷商') return '#3f668e'; if(level==='高級'||level==='中級'||level==='初級') return '#d86a74'; if(level==='一般') return '#b687c8'; return '#999999'; }
+    function collectVisible(n, out){
+      if(n.depth>0) out.push(n);
+      if(n.children) n.children.forEach(c=>collectVisible(c,out));
+    }
 
     async function refreshVisiblePerf(){
-      const nodesAll = treeLayout(root).descendants();
-      const nodes = nodesAll.filter(n=>n.depth>0); // 忽略虛擬ROOT
-      const ids = nodes.map(n=>n.data.id);
-      const key = id=>`${id}|${currentStart}|${currentEnd}`;
-      const need = ids.filter(id=>!perfCache.has(key(id)));
+      treeLayout(root);
+      const visible=[]; collectVisible(root, visible);
+      const ids=visible.map(n=>n.data.id);
+      const key=id=>`${id}|${currentStart}|${currentEnd}`;
+      const need=ids.filter(id=>!perfCache.has(key(id)));
       if(need.length){
-        const map = await getPerf(need, currentStart, currentEnd);
-        for(const id of need){ perfCache.set(key(id), map[id]||{orders:0,pickup:0,months:1}); }
+        const map=await getPerf(need,currentStart,currentEnd);
+        for(const id of need) perfCache.set(key(id), map[id]||{orders:0,pickup:0,months:1});
       }
-      for(const n of nodes){ n.data.performance = perfCache.get(key(n.data.id)); }
+      for(const n of visible) n.data.performance = perfCache.get(key(n.data.id));
     }
 
-    // 搜尋邏輯：若無關鍵字，全部 100% 不透明
-    let allowedTopSet=null; // Set<string>|null
+    let allowedTopSet=null;
     function applySearch(){
       const q=(document.getElementById('searchName').value||'').trim();
-      if(!q){ allowedTopSet=null; update(root); return; } // 全部不淡化
-      const nodes = treeLayout(root).descendants();
-      const hits = nodes.filter(n => (n.data.name||'').includes(q));
-      const tops = new Set(hits.map(h=>topAncestorId(h)));
-      allowedTopSet = tops.size? tops : null;
+      if(!q){ allowedTopSet=null; update(root); return; }
+      treeLayout(root);
+      const all=[]; (function walk(n){ all.push(n); (n.children||n._children||[]).forEach(walk); })(root);
+      const hits=all.filter(n => (n.data.name||'').includes(q));
+      const tops=new Set(hits.map(h=>topAncestorId(h)));
+      allowedTopSet = tops.size ? tops : null;
       update(root);
     }
     function topAncestorId(n){ let cur=n; while(cur.parent && cur.parent.depth>0) cur=cur.parent; return cur.data.id; }
     function shouldDim(d){ if(!allowedTopSet || d.depth===0) return false; return !allowedTopSet.has(d.topId); }
 
     function update(source){
-      const treeData = treeLayout(root);
-      const nodesAll = treeData.descendants();
-      const nodes = nodesAll.filter(n=>n.depth>0); // 不畫虛擬ROOT
-      const links = nodes.filter(d=>d.parent && d.parent.depth>0);
-      nodes.forEach(d=>{ d.y=d.depth*150; d.topId = topAncestorId(d); });
+      treeLayout(root);
 
-      // 使用資料 id 作為 key，避免殘留
-      const node = g.selectAll('.node').data(nodes, d=>d.data.id);
-      const enter = node.enter().append('g').attr('class','node')
+      const nodes=[]; collectVisible(root, nodes);
+      nodes.forEach(d=>{ d.y=d.depth*150; d.topId=topAncestorId(d); });
+      const links=nodes.filter(d=>d.parent);
+
+      const node=g.selectAll('.node').data(nodes, d=>d.data.id);
+      const enter=node.enter().append('g').attr('class','node')
         .attr('transform', d=>`translate(${source.x0||0},${source.y0||0})`)
         .on('click', async (evt,d)=>{ toggle(d); await refreshVisiblePerf(); update(d); updateSummary(); });
 
@@ -260,24 +251,28 @@
       enter.append('text').attr('class','orders-text').attr('dy','1.8em').text(d=>`訂貨: ${(d.data.performance?.orders||0)}萬`);
       enter.append('text').attr('class','pickup-text').attr('dy','3.0em').text(d=>`提貨: ${(d.data.performance?.pickup||0)}萬`);
 
-      const merged = enter.merge(node);
+      const merged=enter.merge(node);
       merged.transition().duration(600).attr('transform', d=>`translate(${d.x},${d.y})`);
       merged.select('circle')
         .attr('r',8)
-        .style('fill', d=> levelFill(d.data.level))
-        .style('stroke-width', d=> isHighPerformer(d)? 3:2)
-        .style('stroke', d=> isHighPerformer(d)? '#e67e22' : levelStroke(d.data.level));
+        .style('fill', d=>levelFill(d.data.level))
+        .style('stroke-width', d=>isHighPerformer(d)?3:2)
+        .style('stroke', d=>isHighPerformer(d)?'#e67e22':levelStroke(d.data.level));
       merged.select('.orders-text').text(d=>`訂貨: ${(d.data.performance?.orders||0)}萬`);
       merged.select('.pickup-text').text(d=>`提貨: ${(d.data.performance?.pickup||0)}萬`);
-      merged.style('opacity', d=> shouldDim(d)? .5 : 1);
+      merged.style('opacity', d=>shouldDim(d)? .5 : 1);
 
-      const link = g.selectAll('.link').data(links, d=>d.data.id); // 以子節點 id 當作 link key
-      const linkEnter = link.enter().insert('path','g').attr('class','link')
-        .attr('d', d=> { const o={x:source.x0||0,y:source.y0||0}; return diagonal(o,o); });
+      node.exit().transition().duration(400)
+        .attr('transform', d=>`translate(${source.x||0},${source.y||0})`)
+        .remove();
+
+      const link=g.selectAll('.link').data(links, d=>d.data.id);
+      const linkEnter=link.enter().insert('path','g').attr('class','link')
+        .attr('d', d=>{ const o={x:source.x0||0,y:source.y0||0}; return diagonal(o,o); });
       linkEnter.merge(link).transition().duration(600)
         .attr('d', d=> diagonal(d,d.parent))
-        .style('opacity', d=> shouldDim(d)? .5 : 1);
-      link.exit().transition().duration(600)
+        .style('opacity', d=>shouldDim(d)? .5 : 1);
+      link.exit().transition().duration(400)
         .attr('d', d=>{ const o={x:source.x||0,y:source.y||0}; return diagonal(o,o); })
         .remove();
 
@@ -286,13 +281,12 @@
 
     function toggle(d){
       if(d.children){
-        // 關閉時，遞迴收合所有子孫，避免殘留在畫面上
-        d._children = d.children;
+        d._children=d.children;
         d._children.forEach(collapse);
-        d.children = null;
+        d.children=null;
       } else {
-        d.children = d._children;
-        d._children = null;
+        d.children=d._children;
+        d._children=null;
       }
     }
     function diagonal(s,d){ return `M ${s.x} ${s.y} C ${s.x} ${(s.y+d.y)/2}, ${d.x} ${(s.y+d.y)/2}, ${d.x} ${d.y}`; }
@@ -301,7 +295,7 @@
       let totalOrders=0, totalPickup=0, totalMembers=0, high=0;
       (function walk(n){
         (n.children||n._children||[]).forEach(walk);
-        if(n.depth===0) return; // 忽略虛擬 ROOT
+        if(n.depth===0) return;
         totalMembers++;
         const p=n.data.performance||{orders:0,pickup:0,months:1};
         totalOrders+=p.orders; totalPickup+=p.pickup;
