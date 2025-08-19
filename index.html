@@ -52,14 +52,14 @@
           .dot-dealer { background:#5582b4; border-color:#3f668e; }   /* 經銷商 */
           .dot-level  { background:#f7959d; border-color:#d86a74; }   /* 高/中/初級 */
           .dot-normal { background:#deabe9; border-color:#b687c8; }   /* 一般 */
-          .dot-high   { background:#f39c12; border-color:#e67e22; }   /* 高業績 */
+          .dot-high   { background:#ffffff; border-color:#e67e22; }   /* 高業績 */
         </style>
 
         <div>
           <span class="dot dot-dealer"></span> 經銷商　
           <span class="dot dot-level"></span> 高/中/初級　
           <span class="dot dot-normal"></span> 一般　
-          <span class="dot dot-high"></span> 高業績（月均訂貨 ≥ 50萬）
+          <span class="dot dot-high"></span> 高業績（月均訂貨 ≥ 106萬）
         </div>
       <div id="chart"></div>
       <div class="stats-summary">
@@ -297,7 +297,7 @@
         totalMembers++;
         const p=n.data.performance||{orders:0,pickup:0,months:1};
         totalOrders+=p.orders; totalPickup+=p.pickup;
-        if((p.orders/p.months)>=50) high++;
+        if((p.orders/p.months)>=106) high++;
       }
       document.getElementById('totalOrders').textContent=totalOrders.toLocaleString();
       document.getElementById('totalPickup').textContent=totalPickup.toLocaleString();
