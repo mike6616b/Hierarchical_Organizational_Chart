@@ -87,22 +87,39 @@
             { id:'T001', name:'李安亭', level:'中級', children:[
               { id:'M001', name:'陳小美', level:'一般' },
               { id:'M002', name:'張志明', level:'一般' },
-              { id:'M008', name:'侯雅慧', level:'初級' }
+              { id:'M008', name:'侯雅慧', level:'初級', children:[
+                { id:'S001', name:'呂佩珊', level:'一般' },
+                { id:'S002', name:'鄭一凡', level:'一般' }
+              ]}
             ]},
             { id:'T002', name:'黃定和', level:'中級', children:[
               { id:'M003', name:'劉大偉', level:'一般' },
-              { id:'M004', name:'周美麗', level:'初級' },
+              { id:'M004', name:'周美麗', level:'初級', children:[
+                { id:'S003', name:'傅宛如', level:'一般' }
+              ]},
               { id:'M009', name:'林亭安', level:'一般' }
+           ]},
+            { id:'T005', name:'曾國華', level:'初級', children:[
+              { id:'M011', name:'許俊安', level:'一般' },
+              { id:'M012', name:'蕭婉婷', level:'一般' }
             ]}
           ]},
           { id:'R002', name:'趙堅目', level:'高級', children:[
             { id:'T003', name:'吳合', level:'中級', children:[
               { id:'M005', name:'馮小強', level:'一般' },
-              { id:'M006', name:'蔡雅婷', level:'初級' }
+              { id:'M006', name:'蔡雅婷', level:'初級' },
+              { id:'M013', name:'林宗翰', level:'一般' }
             ]},
             { id:'T004', name:'許一二', level:'初級', children:[
               { id:'M007', name:'謝小芬', level:'一般' },
-              { id:'M010', name:'楊信宏', level:'一般' }
+              { id:'M010', name:'楊信宏', level:'一般' },
+              { id:'M014', name:'鍾惠文', level:'初級' }
+            ]}
+          ]},
+          { id:'R003', name:'張德興', level:'中級', children:[
+            { id:'T006', name:'吳冠廷', level:'初級', children:[
+              { id:'M015', name:'簡舒婷', level:'一般' },
+              { id:'M016', name:'陳宏宇', level:'一般' }
             ]}
           ]}
         ]},
@@ -111,11 +128,19 @@
             { id:'T101', name:'高小龍', level:'中級', children:[
               { id:'U001', name:'林小虎', level:'一般' },
               { id:'U002', name:'彭美琪', level:'一般' },
-              { id:'U003', name:'宋湘怡', level:'初級' }
+              { id:'U003', name:'宋湘怡', level:'初級', children:[
+                { id:'S004', name:'蔡凱文', level:'一般' },
+                { id:'S005', name:'趙子瑄', level:'一般' }
+              ]}
             ]},
             { id:'T102', name:'曾明慧', level:'初級', children:[
               { id:'U004', name:'杜思妤', level:'一般' },
               { id:'U005', name:'魏家豪', level:'一般' }
+            ]},
+            { id:'T105', name:'賴志成', level:'中級', children:[
+              { id:'U011', name:'方雅雯', level:'一般' },
+              { id:'U012', name:'林永昌', level:'一般' },
+              { id:'U013', name:'江惠如', level:'初級' }
             ]}
           ]},
           { id:'R102', name:'張宇宙', level:'中級', children:[
@@ -128,20 +153,28 @@
               { id:'U009', name:'柯哲瑋', level:'一般' },
               { id:'U010', name:'簡銘昌', level:'一般' }
             ]}
+          ]},
+          { id:'R103', name:'韓志偉', level:'初級', children:[
+            { id:'T106', name:'龔怡君', level:'一般' },
+            { id:'T107', name:'郭政佑', level:'中級', children:[
+              { id:'U014', name:'廖心慈', level:'一般' },
+              { id:'U015', name:'曾智翔', level:'一般' }
+            ]}
           ]}
         ]}
       ]
     };
 
     const perfProfile = {
-      CEO001:420,R001:180,T001:95,M001:48,M002:26,M008:32,
-      T002:75,M003:22,M004:38,M009:28,
-      R002:130,T003:70,M005:31,M006:14,
-      T004:58,M007:18,M010:20,
-      LEAD200:400,R101:170,T101:92,U001:40,U002:36,U003:30,
-      T102:55,U004:22,U005:24,
-      R102:110,T103:60,U006:26,U007:20,
-      T104:78,U008:28,U009:35,U010:33
+      CEO001:420,R001:180,T001:95,M001:48,M002:26,M008:32,S001:15,S002:18,
+      T002:75,M003:22,M004:38,S003:14,M009:28,T005:60,M011:25,M012:27,
+      R002:130,T003:70,M005:31,M006:14,M013:29,T004:58,M007:18,M010:20,M014:22,
+      R003:90,T006:45,M015:21,M016:23,
+
+      LEAD200:400,R101:170,T101:92,U001:40,U002:36,U003:30,S004:19,S005:17,
+      T102:55,U004:22,U005:24,T105:88,U011:30,U012:28,U013:26,
+      R102:110,T103:60,U006:26,U007:20,T104:78,U008:28,U009:35,U010:33,
+      R103:85,T106:40,T107:62,U014:29,U015:27
     };
 
     const memberJoinedAt = {
