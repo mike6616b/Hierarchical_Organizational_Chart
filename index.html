@@ -299,7 +299,7 @@
     }
 
     // 初始視角：稍微往內縮 & 左上留白
-    function fitToTopCenter(padding = 40, topRatio = 0.25) {
+    function fitToTopCenter(padding = 20, topRatio = 0.25) {
       const bbox = g.node().getBBox();                  // 圖形的實際外框
       const [ , , fullW, fullH ] = svg.attr('viewBox').split(' ').map(Number);
 
