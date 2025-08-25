@@ -292,8 +292,7 @@
       
       await refreshVisiblePerf();
       update(root);
-      updateSummary();
-      setTimeout(() => fitToContentTop(), 650);   
+      updateSummary(); 
     }
 
     const FIT_PADDING_TOP = 64;   // 上方留白（越大越往下）
@@ -396,18 +395,22 @@
 
     const topAncestorId=(n)=>{ let cur=n; while(cur.parent && cur.parent.depth>0) cur=cur.parent; return cur.data.id; };
 
+    let firstPaint = true;  // 首次繪製
     function update(source){
       treeLayout(root);
       const nodes=getVisibleNodes();
-      //nodes.forEach(d=>{ d.y=d.depth*150; d.topId=topAncestorId(d); });
       nodes.forEach(d => { d.topId = topAncestorId(d); });
+      const dur = firstPaint ? 0 : 600;   // 第一次不要動畫
 
       // 不畫虛擬 ROOT 的連線
       const links=nodes.filter(d=>d.parent && d.parent.depth>0);
 
       const node=g.selectAll('.node').data(nodes, d=>d.data.id);
       const enter=node.enter().append('g').attr('class','node')
-        .attr('transform', d=>`translate(${source.x0||0},${source.y0||0})`)
+        // 第一次直接放在目標座標；其後才從 source 位置動畫到目標
+        .attr('transform', d=> firstPaint
+          ? `translate(${d.x},${d.y})`
+          : `translate(${source.x0||0},${source.y0||0})`)
         .on('click', async (evt,d)=>{ toggle(d); await refreshVisiblePerf(); update(d); updateSummary(); });
 
       enter.append('circle').attr('r',8);
@@ -435,7 +438,7 @@
       });
 
       const merged=enter.merge(node);
-      merged.transition().duration(600).attr('transform', d=>`translate(${d.x},${d.y})`);
+      merged.transition().duration(dur).attr('transform', d=>`translate(${d.x},${d.y})`);
       merged.select('circle')
         .attr('r',8)
         .style('fill', d=>levelFill(d.data.level))
@@ -465,8 +468,9 @@
 
       const link=g.selectAll('.link').data(links, d=>d.data.id);
       const linkEnter=link.enter().insert('path','g').attr('class','link')
-        .attr('d', d=>{ const o={x:source.x0||0,y:source.y0||0}; return diagonal(o,o); });
-      linkEnter.merge(link).transition().duration(600)
+        .attr('d', d=> firstPaint ? diagonal(d,d.parent)
+          : diagonal({x:source.x0||0,y:source.y0||0}, {x:source.x0||0,y:source.y0||0}));
+      linkEnter.merge(link).transition().duration(dur)
         .attr('d', d=> diagonal(d,d.parent))
         .style('opacity', d=> {
           if(!highlightIds) return 1;
@@ -476,7 +480,13 @@
         .attr('d', d=>{ const o={x:source.x||0,y:source.y||0}; return diagonal(o,o); }).remove();
 
       nodes.forEach(d=>{ d.x0=d.x; d.y0=d.y; });
-    }
+
+      // 第一次畫完就立即 fit（無動畫），之後就保持原本流程
+      if (firstPaint) {
+        fitToContentTop();
+        firstPaint = false;
+        }
+      }
 
     function toggle(d){
       if(d.children){ d._children=d.children; d._children.forEach(collapse); d.children=null; }
