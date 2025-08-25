@@ -20,7 +20,7 @@
     .date-filter{position:absolute;top:16px;right:16px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(10px);border-radius:10px;padding:10px}
     .date-filter input[type="date"],.date-filter input[type="text"]{width:160px;padding:8px;border:none;border-radius:6px;background:rgba(255,255,255,.95);font-size:12px}
     .date-filter button{padding:8px 12px;border:none;border-radius:6px;background:#27ae60;color:#fff;font-size:12px;cursor:pointer}
-    .chart-container{padding:16px;text-align:center}
+    .chart-container { padding:16px; text-align:center; position:relative; }
     .instructions{background:linear-gradient(135deg,#e8f5e8 0%,#f0f8ff 100%);border:1px solid #27ae60;color:var(--ink);padding:12px;border-radius:10px;margin:0 0 12px;font-size:13px}
     .stats-summary{display:flex;justify-content:space-around;gap:8px;flex-wrap:wrap;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px;border-radius:10px;margin-top:12px}
     .stat-item{text-align:center}.stat-value{font-size:22px;font-weight:800;display:block}.stat-label{font-size:12px;opacity:.9}
@@ -33,9 +33,16 @@
     .link{fill:none;stroke:#bdc3c7;stroke-width:2px;stroke-opacity:.85}
 
     /* --- Zoom/Pan 視覺與尺寸 --- */
-    #chart svg{ width:100%; height:70vh; display:block; }
+    #chart svg{ width:100%; height:70vh; display:block; cursor:grab;}
     #chart svg.grabbing{ cursor:grabbing; }
-    #chart svg{ cursor:grab; }
+    #zoomControls{
+      position:absolute; right:12px; top:12px; z-index:2;
+      display:flex; gap:6px;
+    }
+    #zoomControls button{
+      padding:4px 8px; font-size:12px; border:1px solid #d0d7de; border-radius:8px;
+      background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.06); cursor:pointer;
+    }
     
   </style>
 </head>
@@ -75,10 +82,10 @@
       </div>
         
       <div id="chart"></div>
-      <div id="zoomControls" style="position:absolute; right:24px; top:24px; display:flex; gap:6px; z-index:2;">
-        <button id="btnZoomIn"  style="padding:6px 10px">＋</button>
-        <button id="btnZoomOut" style="padding:6px 10px">－</button>
-        <button id="btnFit"     style="padding:6px 10px">Fit</button>
+      <div id="zoomControls">
+        <button id="btnZoomIn">＋</button>
+        <button id="btnZoomOut">－</button>
+        <button id="btnFit">Fit</button>
      </div>
       
       <div class="stats-summary">
@@ -212,9 +219,6 @@
     let currentStart='2025-01-01', currentEnd='2025-08-15';
     const perfCache=new Map();
 
-    const margin={top:120,right:40,bottom:40,left:40};
-    const width=1200-margin.left-margin.right, height=800-margin.top-margin.bottom;
-
     // 尺寸
     const margin = {top:120,right:40,bottom:40,left:40};
     const width  = 1200 - margin.left - margin.right;
@@ -226,7 +230,7 @@
       .attr('preserveAspectRatio','xMidYMid meet');
 
     const zoomLayer = svg.append('g');  // <— 這層拿來 zoom/pan
-    const g = zoomLayer.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+    g = zoomLayer.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
     treeLayout = d3.tree().size([width, height]);
 
@@ -276,23 +280,14 @@
     centerInitial();
 
     // Fit to content：自動把所有節點都塞進視窗
-    function fitToContent(padding = 40) {
-      // 用 <g> 的外框尺寸來計算
+    function fitToContent(padding=40){
       const bbox = g.node().getBBox();
-      const fullW = +svg.attr('viewBox').split(' ')[2];
-      const fullH = +svg.attr('viewBox').split(' ')[3];
-
-      const scale = Math.max(0.3, Math.min(
-        2,
-        (fullW - padding*2) / bbox.width,
-        (fullH - padding*2) / bbox.height
-      ));
-
-      const tx = (fullW  - bbox.width  * scale)/2 - bbox.x * scale;
-      const ty = (fullH  - bbox.height * scale)/2 - bbox.y * scale;
-
-      const t = d3.zoomIdentity.translate(tx, ty).scale(scale);
-      svg.transition().duration(500).call(zoom.transform, t);
+      const vb   = svg.attr('viewBox').split(' ').map(Number);
+      const fullW = vb[2], fullH = vb[3];
+      const scale = Math.max(0.3, Math.min(2, (fullW - padding*2)/bbox.width, (fullH - padding*2)/bbox.height));
+      const tx = (fullW - bbox.width*scale)/2 - bbox.x*scale;
+      const ty = (fullH - bbox.height*scale)/2 - bbox.y*scale;
+      svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(scale));
     }
 
     // 讓拖曳時有「抓取」游標
@@ -300,8 +295,8 @@
     d3.select(window).on('mouseup', ()=> svg.classed('grabbing', false));
 
     // 控制鈕
-    d3.select('#btnZoomIn') .on('click', ()=> svg.transition().duration(250).call(zoom.scaleBy, 1.2));
-    d3.select('#btnZoomOut').on('click', ()=> svg.transition().duration(250).call(zoom.scaleBy, 1/1.2));
+    d3.select('#btnZoomIn') .on('click', ()=> svg.transition().duration(200).call(zoom.scaleBy, 1.2));
+    d3.select('#btnZoomOut').on('click', ()=> svg.transition().duration(200).call(zoom.scaleBy, 1/1.2));
     d3.select('#btnFit')    .on('click', ()=> fitToContent());
 
     // 畫面更新後(展開/收合/搜尋)也可自動 fit（選擇性）
