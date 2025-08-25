@@ -293,7 +293,7 @@
       await refreshVisiblePerf();
       update(root);
       updateSummary();
-      fitToContentTop();   
+      setTimeout(() => fitToContentTop(), 650);   
     }
 
     const FIT_PADDING_TOP = 64;   // 上方留白（越大越往下）
