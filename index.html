@@ -240,12 +240,24 @@
     const zoomLayer = svg.append('g');  // <— 這層拿來 zoom/pan
     g = zoomLayer.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    treeLayout = d3.tree().size([width, height]);
+    //treeLayout = d3.tree().size([width, height]);
+    //可調間距
+    const XGAP = 180;   // 同層左右間距
+    const YGAP = 140;   // 父子垂直距離
+    treeLayout = d3.tree()
+      .nodeSize([XGAP, YGAP])
+      .separation((a,b)=> (a.parent === b.parent ? 1.2 : 1.8));
 
     // Zoom 行為
     const zoom = d3.zoom()
-      .scaleExtent([0.3, 2])              // 最小/最大縮放
-      .on('zoom', (ev)=> zoomLayer.attr('transform', ev.transform));
+      .scaleExtent([0.3, 2])
+      .on('zoom', (ev)=>{
+        zoomLayer.attr('transform', ev.transform);
+        const k = ev.transform.k;
+        d3.selectAll('.orders-text,.pickup-text').style('display', k >= 1.0 ? null : 'none');
+        d3.selectAll('.level-text').style('display',  k >= 0.8 ? null : 'none');
+        // 姓名永遠顯示
+      });
 
     svg.call(zoom).on('dblclick.zoom', null);   // 關掉雙擊放大（避免誤觸）
     
@@ -363,7 +375,8 @@
     function update(source){
       treeLayout(root);
       const nodes=getVisibleNodes();
-      nodes.forEach(d=>{ d.y=d.depth*150; d.topId=topAncestorId(d); });
+      //nodes.forEach(d=>{ d.y=d.depth*150; d.topId=topAncestorId(d); });
+      nodes.forEach(d => { d.topId = topAncestorId(d); });
 
       // 不畫虛擬 ROOT 的連線
       const links=nodes.filter(d=>d.parent && d.parent.depth>0);
@@ -384,7 +397,7 @@
         .text(d => {
           const p = d.data.performance || {orders:0, months:1};
           const avg = p.orders / (p.months || 1);
-          return `訂：${Math.round(p.orders)}萬 (月均${Math.round(avg)}萬)`;  // ★
+          return `訂：${Math.round(p.orders)}萬`;  // ★
         });
      
       // 建立「提貨」文字  //
@@ -394,7 +407,7 @@
         .text(d => {
           const p = d.data.performance || {pickup:0, months:1};
           const avg = p.pickup / (p.months || 1);
-          return `提：${Math.round(p.pickup)}萬 (月均${Math.round(avg)}萬)`;
+          return `提：${Math.round(p.pickup)}萬 `;
       });
 
       const merged=enter.merge(node);
@@ -410,7 +423,7 @@
         .text(d => {
           const p = d.data.performance || {orders:0, months:1};
           const avg = p.orders / (p.months || 1);
-          return `訂貨：${Math.round(p.orders)}萬 (月均${Math.round(avg)}萬)`;  // ★
+          return `訂貨：${Math.round(p.orders)}萬`;  // ★
         });
       
       // 更新「提貨」  //
@@ -418,7 +431,7 @@
         .text(d => {
           const p = d.data.performance || {pickup:0, months:1};
           const avg = p.pickup / (p.months || 1);
-          return `提貨：${Math.round(p.pickup)}萬 (月均${Math.round(avg)}萬)`;  // ★
+          return `提貨：${Math.round(p.pickup)}萬`;  // ★
         });
       
       merged.style('opacity', d=> shouldDim(d)? .5 : 1);
