@@ -106,25 +106,6 @@
 
   <script>
     // ------- Mock data -------
-    /*
-  Random Org Tree Generator (TW) — 含「訂貨、提貨」績效
-  直接取代你原本寫死的 treeData。
-  用法：
-    const { treeData, perfProfile, seed } = generateOrgTree({ seed: 42 });
-    // 然後用 treeData 丟進 d3.hierarchy(...)
-
-  提供的資料：
-    - treeData：節點結構，節點上已內嵌 metrics：{ order, pickup }
-    - perfProfile：以 id 為 key 的平行查詢表，值同上
-
-  Rerender：
-    regenerateAndRerender(() => {
-      const root = d3.hierarchy(window.treeData);
-      treeLayout(root);
-      // draw(...)
-    }, { seed: 'new-seed' });
-*/
-
 function generateOrgTree(opts = {}) {
   const {
     seed = Date.now(),              // 固定種子可重現結果
@@ -135,8 +116,8 @@ function generateOrgTree(opts = {}) {
       dealer: [3, 5],               // 經銷商底下的「高級/中級起點」數
       senior: [2, 4],               // 高級底下的中級/初級數
       mid:    [2, 4],               // 中級底下的初級/一般數
-      junior: [2, 5],               // 初級底下的一般/見習數
-      general:[0, 3],               // 一般底下的見習數
+      junior: [2, 5],               // 初級底下的一般數（已無見習）
+      general:[0, 0],               // 一般為葉節點
     },
     // 各層績效區間與提貨比（pickup 相對訂貨，確保 ≤ 訂貨）
     perfByLevel = {
@@ -146,7 +127,6 @@ function generateOrgTree(opts = {}) {
       中級:       { order:[60,110],  pickupRatio:[0.6,0.9] },
       初級:       { order:[40,80],   pickupRatio:[0.55,0.85] },
       一般:       { order:[18,40],   pickupRatio:[0.5,0.8] },
-      見習:       { order:[10,25],   pickupRatio:[0.4,0.7] },
     }
   } = opts;
 
@@ -169,8 +149,8 @@ function generateOrgTree(opts = {}) {
   function randName(){ return pick(lastNames) + pick(givenA) + pick(givenB); }
 
   // 層級定義與 id prefix（與你現有圖例相容）
-  const levelOrder = ['ROOT','經銷商','高級','中級','初級','一般','見習'];
-  const prefixByLevel = { ROOT:'ROOT', 經銷商:'CEO', 高級:'R', 中級:'T', 初級:'M', 一般:'U', 見習:'S' };
+  const levelOrder = ['ROOT','經銷商','高級','中級','初級','一般'];
+  const prefixByLevel = { ROOT:'ROOT', 經銷商:'CEO', 高級:'R', 中級:'T', 初級:'M', 一般:'U' };
 
   // 依層給下一層候選與分支範圍鍵
   function childrenPlan(level){
@@ -178,8 +158,8 @@ function generateOrgTree(opts = {}) {
       case '經銷商': return { next: ['高級','中級'], key:'dealer' };
       case '高級':   return { next: ['中級','初級'], key:'senior' };
       case '中級':   return { next: ['初級','一般'], key:'mid' };
-      case '初級':   return { next: ['一般','見習'], key:'junior' };
-      case '一般':   return { next: ['見習'],        key:'general' };
+      case '初級':   return { next: ['一般'],        key:'junior' };
+      case '一般':   return { next: [],               key:null };
       default:       return { next: [],               key:null };
     }
   }
@@ -187,8 +167,8 @@ function generateOrgTree(opts = {}) {
   // 產生節點
   function makeNode(level){
     const id = nextId(prefixByLevel[level] || 'N');
-    const name = level==='經銷商' ? randName().replace(/.$/,'執行長') : randName();
-    const node = { id, name, level, metrics: { order:0, pickup:0 } };
+    const name = randName(); // 不再加「執行長」
+    const node = { id, name, level, metrics: { order:0, pickup:0 }, order:0, pickup:0, 訂貨:0, 提貨:0 };
     return node;
   }
 
@@ -202,15 +182,16 @@ function generateOrgTree(opts = {}) {
   }
 
   // 建樹
-  const root = { id:'ROOT', name:'ROOT', level:'ROOT', metrics:{ order:0, pickup:0 }, children:[] };
-  const perfProfile = { [root.id]: { ...root.metrics } };
+  const root = { id:'ROOT', name:'ROOT', level:'ROOT', metrics:{ order:0, pickup:0 }, order:0, pickup:0, 訂貨:0, 提貨:0, children:[] };
+  const perfProfile = { [root.id]: { order:0, pickup:0 } };
 
   // 先放 dealers
   for(let i=0;i<dealers;i++){
     const dealer = makeNode('經銷商');
-    dealer.metrics = drawMetrics('經銷商');
+    const m = drawMetrics('經銷商');
+    dealer.metrics = m; dealer.order = m.order; dealer.pickup = m.pickup; dealer['訂貨']=m.order; dealer['提貨']=m.pickup;
     (root.children||(root.children=[])).push(dealer);
-    perfProfile[dealer.id] = { ...dealer.metrics };
+    perfProfile[dealer.id] = { ...m };
   }
 
   // BFS 擴展到指定深度
@@ -230,9 +211,10 @@ function generateOrgTree(opts = {}) {
     for(let i=0;i<childCount;i++){
       const nextLevel = pick(plan.next); // 混合下一層級，避免太整齊
       const child = makeNode(nextLevel);
-      child.metrics = drawMetrics(nextLevel);
+      const m = drawMetrics(nextLevel);
+      child.metrics = m; child.order = m.order; child.pickup = m.pickup; child['訂貨']=m.order; child['提貨']=m.pickup;
       node.children.push(child);
-      perfProfile[child.id] = { ...child.metrics };
+      perfProfile[child.id] = { ...m };
       queue.push({ node: child, depth: d+1 });
     }
   }
