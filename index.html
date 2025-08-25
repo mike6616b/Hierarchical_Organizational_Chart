@@ -294,14 +294,11 @@
       update(root);
       updateSummary();
       fitToContentTop();   
-
-      // 畫完後置中到上方
-      setTimeout(() => fitToTopCenter(48), 0);
     }
 
-    const FIT_PADDING_TOP = 30;   // 上方留白（越大越往下）
-    const FIT_PADDING     = 40;   // 左右/下方留白
-    const FIT_BUMP        = 1.4;  // 初始放大一點點（>1 會更近，<1 會更遠） 
+    const FIT_PADDING_TOP = 64;   // 上方留白（越大越往下）
+    const FIT_PADDING     = 48;   // 左右/下方留白
+    const FIT_BUMP        = 1.6;  // 初始放大一點點（>1 會更近，<1 會更遠） 
     const ZOOM_MIN        = 0.4;  // 允許最小縮放
     const ZOOM_MAX        = 2.5;  // 允許最大縮放
     
@@ -344,7 +341,7 @@
     // 控制鈕
     d3.select('#btnZoomIn') .on('click', ()=> svg.transition().duration(200).call(zoom.scaleBy, 1.2));
     d3.select('#btnZoomOut').on('click', ()=> svg.transition().duration(200).call(zoom.scaleBy, 1/1.2));
-    d3.select('#btnFit')    .on('click', ()=> fitToContent());
+    d3.select('#btnFit')    .on('click', ()=> fitToContentTop());
 
     // 畫面更新後(展開/收合/搜尋)也可自動 fit（選擇性）
     function afterUpdateAutoFit(){
