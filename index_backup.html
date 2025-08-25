@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>組織架構圖 MVP</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    :root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; }
+    *{box-sizing:border-box}
+    body {
+          margin: 0;
+          font-family: 'Noto Sans TC', 'Microsoft JhengHei',system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+          background: var(--bg);
+    }
+    .container{max-width:1400px;margin:16px auto;background:var(--card);border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.08);overflow:hidden}
+    .header{position:relative;padding:20px;color:#fff;background:linear-gradient(135deg,#2c3e50 0%,#3498db 100%)}
+    .header h1{margin:0 0 6px;font-size:22px}
+    .header p{margin:0;opacity:.9}
+    .date-filter{position:absolute;top:16px;right:16px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(10px);border-radius:10px;padding:10px}
+    .date-filter input[type="date"],.date-filter input[type="text"]{width:160px;padding:8px;border:none;border-radius:6px;background:rgba(255,255,255,.95);font-size:12px}
+    .date-filter button{padding:8px 12px;border:none;border-radius:6px;background:#27ae60;color:#fff;font-size:12px;cursor:pointer}
+    .chart-container { padding:16px; text-align:center; position:relative; }
+    .instructions{background:linear-gradient(135deg,#e8f5e8 0%,#f0f8ff 100%);border:1px solid #27ae60;color:var(--ink);padding:12px;border-radius:10px;margin:0 0 12px;font-size:13px}
+    .stats-summary{display:flex;justify-content:space-around;gap:8px;flex-wrap:wrap;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px;border-radius:10px;margin-top:12px}
+    .stat-item{text-align:center}.stat-value{font-size:22px;font-weight:800;display:block}.stat-label{font-size:12px;opacity:.9}
+    .node circle{stroke-width:2px;transition:all .25s ease}.node circle:hover{transform:scale(1.08)}
+    .node text{fill:var(--ink);text-anchor:middle;pointer-events:none}
+    .name-text{font-weight:700;font-size:14px;dominant-baseline:middle}
+    .level-text{font-size:11px;color:var(--muted);dominant-baseline:middle}
+    .orders-text{font-size:10px;fill:#27ae60;font-weight:700;dominant-baseline:middle}
+    .pickup-text{font-size:10px;fill:#8e44ad;font-weight:700;dominant-baseline:middle}
+    .link{fill:none;stroke:#bdc3c7;stroke-width:2px;stroke-opacity:.85}
+
+    /* --- Zoom/Pan 視覺與尺寸 --- */
+    #chart svg{ width:100%; height:70vh; display:block; cursor:grab;}
+    #chart svg.grabbing{ cursor:grabbing; }
+    #chart { position: relative; }              /* 讓子元素可用 absolute 對齊 */
+    #zoomControls{
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 6px;
+      z-index: 3;                               
+    }
+    #zoomControls button{
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    #btnFit{ display:none; }                    /* 暫時隱藏 Fit */
+    
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>組織架構圖</h1>
+      <p>點擊節點展開下線組織，查看各階段業績表現</p>
+      <div class="date-filter">
+        <input type="date" id="startDate" value="2025-01-01" />
+        <input type="date" id="endDate" value="2025-08-15" />
+        <button id="btnApply">更新數據</button>
+        <input type="text" id="searchName" placeholder="搜尋人名" />
+        <button id="btnSearch" style="background:#3b82f6">搜尋</button>
+        <button id="btnClear" style="background:#6b7280">清除</button>
+      </div>
+    </div>
+
+    <style>
+      .dot { display:inline-block; width:12px; height:12px; border-radius:50%; border:2px solid; vertical-align:middle; }
+      .dot-dealer { background:#5582b4; border-color:#3f668e; }   /* 經銷商 */
+      .dot-level  { background:#f7959d; border-color:#d86a74; }   /* 高/中/初級 */
+      .dot-normal { background:#deabe9; border-color:#b687c8; }   /* 一般 */
+      .dot-high   { background:#ffffff; border-color:#fff600; }   /* 高業績 */
+    </style>
+    
+    <div class="chart-container">
+      <div class="instructions">
+        使用日期區間與搜尋人名<br>
+        等級配色：
+        <div>
+          <span class="dot dot-dealer"></span> 經銷商　
+          <span class="dot dot-level"></span> 高/中/初級　
+          <span class="dot dot-normal"></span> 一般　
+          <span class="dot dot-high"></span> 高業績（月均訂貨 ≥ 106萬）
+        </div>
+      </div>
+        
+      <div id="chart">
+        <div id="zoomControls">
+          <button id="btnZoomIn">＋</button>
+          <button id="btnZoomOut">－</button>
+          <button id="btnFit">Fit</button>
+       </div>
+      </div>
+      
+      <div class="stats-summary">
+        <div class="stat-item"><span class="stat-value" id="totalOrders">0</span><span class="stat-label">總訂貨金額 (萬元)</span></div>
+        <div class="stat-item"><span class="stat-value" id="totalPickup">0</span><span class="stat-label">總提貨金額 (萬元)</span></div>
+        <div class="stat-item"><span class="stat-value" id="totalMembers">0</span><span class="stat-label">組織總人數</span></div>
+        <div class="stat-item"><span class="stat-value" id="highPerformers">0</span><span class="stat-label">高業績會員</span></div>
+      </div>
+    </div>
+
+  <script>
+    // ------- Mock data -------
+    const treeData = {
+      id:'ROOT', name:'ROOT', level:'ROOT', children:[
+        { id:'CEO001', name:'林執行長', level:'經銷商', children:[
+          { id:'R001', name:'王大名', level:'經銷商', children:[
+            { id:'T001', name:'李安亭', level:'高級', children:[
+              { id:'M001', name:'陳小美', level:'一般' },
+              { id:'M002', name:'張志明', level:'一般' },
+              { id:'M008', name:'侯雅慧', level:'初級', children:[
+                { id:'S001', name:'呂佩珊', level:'一般' },
+                { id:'S002', name:'鄭一凡', level:'一般' }
+              ]}
+            ]},
+            { id:'T002', name:'黃定和', level:'高級', children:[
+              { id:'M003', name:'劉大偉', level:'初級' },
+              { id:'M004', name:'周美麗', level:'初級', children:[
+                { id:'S003', name:'傅宛如', level:'一般' }
+              ]},
+              { id:'M009', name:'林亭安', level:'一般' }
+           ]},
+            { id:'T005', name:'曾國華', level:'高級', children:[
+              { id:'M011', name:'許俊安', level:'一般' },
+              { id:'M012', name:'蕭婉婷', level:'一般' }
+            ]}
+          ]},
+          { id:'R002', name:'趙堅目', level:'經銷商', children:[
+            { id:'T003', name:'吳合', level:'中級', children:[
+              { id:'M005', name:'馮小強', level:'一般' },
+              { id:'M006', name:'蔡雅婷', level:'初級' },
+              { id:'M013', name:'林宗翰', level:'一般' }
+            ]},
+            { id:'T004', name:'許一二', level:'高級', children:[
+              { id:'M007', name:'謝小芬', level:'一般' },
+              { id:'M010', name:'楊信宏', level:'一般' },
+              { id:'M014', name:'鍾惠文', level:'初級' }
+            ]}
+          ]},
+          { id:'R003', name:'張德興', level:'中級', children:[
+            { id:'T006', name:'吳冠廷', level:'初級', children:[
+              { id:'M015', name:'簡舒婷', level:'一般' },
+              { id:'M016', name:'陳宏宇', level:'一般' }
+            ]}
+          ]}
+        ]},
+        { id:'LEAD200', name:'王超人', level:'經銷商', children:[
+          { id:'R101', name:'陳飛俠', level:'高級', children:[
+            { id:'T101', name:'高小龍', level:'中級', children:[
+              { id:'U001', name:'林小虎', level:'一般' },
+              { id:'U002', name:'彭美琪', level:'一般' },
+              { id:'U003', name:'宋湘怡', level:'初級', children:[
+                { id:'S004', name:'蔡凱文', level:'一般' },
+                { id:'S005', name:'趙子瑄', level:'一般' }
+              ]}
+            ]},
+            { id:'T102', name:'曾明慧', level:'初級', children:[
+              { id:'U004', name:'杜思妤', level:'一般' },
+              { id:'U005', name:'魏家豪', level:'一般' }
+            ]},
+            { id:'T105', name:'賴志成', level:'中級', children:[
+              { id:'U011', name:'方雅雯', level:'一般' },
+              { id:'U012', name:'林永昌', level:'一般' },
+              { id:'U013', name:'江惠如', level:'初級' }
+            ]}
+          ]},
+          { id:'R102', name:'張宇宙', level:'中級', children:[
+            { id:'T103', name:'何青青', level:'初級', children:[
+              { id:'U006', name:'邱柏翰', level:'一般' },
+              { id:'U007', name:'連語瞳', level:'一般' }
+            ]},
+            { id:'T104', name:'賴思思', level:'中級', children:[
+              { id:'U008', name:'韓可欣', level:'初級' },
+              { id:'U009', name:'柯哲瑋', level:'一般' },
+              { id:'U010', name:'簡銘昌', level:'一般' }
+            ]}
+          ]},
+          { id:'R103', name:'韓志偉', level:'初級', children:[
+            { id:'T106', name:'龔怡君', level:'一般' },
+            { id:'T107', name:'郭政佑', level:'中級', children:[
+              { id:'U014', name:'廖心慈', level:'一般' },
+              { id:'U015', name:'曾智翔', level:'一般' }
+            ]}
+          ]}
+        ]}
+      ]
+    };
+
+    const perfProfile = {
+      CEO001:420,R001:180,T001:95,M001:48,M002:26,M008:32,S001:15,S002:18,
+      T002:75,M003:22,M004:38,S003:14,M009:28,T005:60,M011:25,M012:27,
+      R002:130,T003:70,M005:31,M006:14,M013:29,T004:58,M007:18,M010:20,M014:22,
+      R003:90,T006:45,M015:21,M016:23,
+
+      LEAD200:400,R101:170,T101:92,U001:40,U002:36,U003:30,S004:19,S005:17,
+      T102:55,U004:22,U005:24,T105:88,U011:30,U012:28,U013:26,
+      R102:110,T103:60,U006:26,U007:20,T104:78,U008:28,U009:35,U010:33,
+      R103:85,T106:40,T107:62,U014:29,U015:27
+    };
+
+    const memberJoinedAt = {
+      CEO001: '2023-01-01',
+      R001: '2024-03-15',
+      // ... 其餘成員
+    };
+    
+    window.DataProvider = {
+      async getTreeRoot(){ return structuredClone(treeData); },
+      async getPerf(ids,s,e){
+        const d1=new Date(s), d2=new Date(e);
+        const months=Math.max(1,(d2.getFullYear()-d1.getFullYear())*12+(d2.getMonth()-d1.getMonth())+1);
+        const map={}; for(const id of ids){ const avg=perfProfile[id]||0;
+          const orders=Math.round(avg*months), pickup=Math.round(orders*0.95);
+          map[id]={orders,pickup,months}; } return map;
+      }
+    };
+  </script>
+
+  <script>
+    const { getTreeRoot, getPerf } = window.DataProvider;
+    let root, treeLayout, g;
+    let currentStart='2025-01-01', currentEnd='2025-08-15';
+    const perfCache=new Map();
+
+    // 尺寸
+    const margin = {top:120,right:40,bottom:40,left:40};
+    const width  = 1200 - margin.left - margin.right;
+    const height = 800  - margin.top  - margin.bottom;
+
+    // SVG + 兩層 <g>：zoomLayer 會被縮放/平移，g 是你原本畫圖的座標系(含 margin)
+    const svg = d3.select('#chart').append('svg')
+      .attr('viewBox', [0, 0, width + margin.left + margin.right, height + margin.top + margin.bottom].join(' '))
+      .attr('preserveAspectRatio','xMidYMid meet');
+
+    const zoomLayer = svg.append('g');  // <— 這層拿來 zoom/pan
+    g = zoomLayer.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    //treeLayout = d3.tree().size([width, height]);
+    //可調間距
+    const XGAP = 180;   // 同層左右間距
+    const YGAP = 140;   // 父子垂直距離
+    treeLayout = d3.tree()
+      .nodeSize([XGAP, YGAP])
+      .separation((a,b)=> (a.parent === b.parent ? 1.2 : 1.8));
+
+    // Zoom 行為
+    const zoom = d3.zoom()
+      .scaleExtent([0.3, 2])
+      .on('zoom', (ev)=>{
+        zoomLayer.attr('transform', ev.transform);
+        const k = ev.transform.k;
+        d3.selectAll('.orders-text,.pickup-text').style('display', k >= 1.0 ? null : 'none');
+        d3.selectAll('.level-text').style('display',  k >= 0.8 ? null : 'none');
+        // 姓名永遠顯示
+      });
+
+    svg.call(zoom).on('dblclick.zoom', null);   // 關掉雙擊放大（避免誤觸）
+    
+    // const svg=d3.select('#chart').append('svg')
+      //.attr('width',width+margin.left+margin.right)
+      //.attr('height',height+margin.top+margin.bottom);
+    //g=svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+    //treeLayout=d3.tree().size([width,height]);
+    const HIGH_THRESHOLD = 106;
+
+    // === 事件 ===
+    document.getElementById('btnApply').addEventListener('click',()=>{
+      const s=startDate.value, e=endDate.value;
+      if(!s||!e) return alert('請選擇完整的日期區間');
+      if(new Date(s)>new Date(e)) return alert('開始日期不能晚於結束日期');
+      currentStart=s; currentEnd=e;
+      refreshVisiblePerf().then(()=>{ update(root); updateSummary(); });
+    });
+
+    document.getElementById('btnSearch').addEventListener('click', ()=>{ applySearch(); });
+    document.getElementById('btnClear').addEventListener('click', ()=>{
+      highlightIds=null; update(root); updateSummary();
+    });
+
+    // === 初始化 ===
+    init();
+    async function init(){
+      const data=await getTreeRoot();
+      root=d3.hierarchy(data,d=>d.children);
+      root.children?.forEach(collapse); // 兩條主線預設收合
+      root.x0=width/2; root.y0=0;
+      
+      await refreshVisiblePerf();
+      update(root);
+      updateSummary(); 
+    }
+
+    const FIT_PADDING_TOP = 30;   // 上方留白（越大越往下）
+    const FIT_PADDING     = 48;   // 左右/下方留白
+    const FIT_BUMP        = 1.6;  // 初始放大一點點（>1 會更近，<1 會更遠） 
+    const ZOOM_MIN        = 0.4;  // 允許最小縮放
+    const ZOOM_MAX        = 2.5;  // 允許最大縮放
+    
+    // 置中（水平）＋貼上方（垂直），自動縮放到看得下
+    function fitToContentTop() {
+      const node = g.node();
+      if (!node) return;
+
+     const b = node.getBBox();
+      // 若還沒有任何節點（或 bbox 無效）就直接回 1:1
+      if (!isFinite(b.width) || !isFinite(b.height) || b.width === 0 || b.height === 0) {
+        svg.transition().duration(250).call(zoom.transform, d3.zoomIdentity);
+        return;
+      }
+
+      const [ , , fullW, fullH ] = svg.attr('viewBox').split(' ').map(Number);
+
+      // 先用真正 fit 算出 baseScale，再乘上 BUMP 讓比例更大些
+      const baseScale = Math.min(
+        (fullW - FIT_PADDING * 2) / b.width,
+        (fullH - (FIT_PADDING_TOP + FIT_PADDING)) / b.height
+      );
+      const k = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, baseScale * FIT_BUMP));
+
+      // ★ 用「內容中心對齊視窗中心」的方式算水平位移，避免偏左
+      const contentCx = b.x + b.width / 2;
+      const tx = (fullW / 2) - (contentCx * k);
+
+      // ★ 垂直靠上（留一些上邊距）
+      const ty = FIT_PADDING_TOP - (b.y * k);
+
+      svg.transition().duration(500)
+         .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
+    }
+
+    // 讓拖曳時有「抓取」游標
+    svg.on('mousedown', ()=> svg.classed('grabbing', true));
+    d3.select(window).on('mouseup', ()=> svg.classed('grabbing', false));
+
+    // 控制鈕
+    d3.select('#btnZoomIn') .on('click', ()=> svg.transition().duration(200).call(zoom.scaleBy, 1.2));
+    d3.select('#btnZoomOut').on('click', ()=> svg.transition().duration(200).call(zoom.scaleBy, 1/1.2));
+    d3.select('#btnFit')    .on('click', ()=> fitToContentTop());
+
+    // 畫面更新後(展開/收合/搜尋)也可自動 fit（選擇性）
+    function afterUpdateAutoFit(){
+      fitToContentTop();
+    }
+    
+    function collapse(n){ if(n.children){ n._children=n.children; n._children.forEach(collapse); n.children=null; } }
+    function isHighPerformer(d){
+      const p = d.data.performance;
+      return p && p.months && (p.orders / p.months) >= HIGH_THRESHOLD;
+    }
+    function levelFill(l){ if(l==='經銷商')return'#5582b4'; if(l==='高級'||l==='中級'||l==='初級')return'#f7959d'; if(l==='一般')return'#deabe9'; return'#ccc'; }
+    function levelStroke(l){ if(l==='經銷商')return'#3f668e'; if(l==='高級'||l==='中級'||l==='初級')return'#d86a74'; if(l==='一般')return'#b687c8'; return'#999'; }
+
+    // 只收集目前可見節點（展開中的）
+    function collectVisible(n,out){ if(n.depth>0) out.push(n); if(n.children) n.children.forEach(c=>collectVisible(c,out)); }
+    function getVisibleNodes(){ const arr=[]; collectVisible(root,arr); return arr; }
+
+    async function refreshVisiblePerf(){
+      treeLayout(root);
+      const visible=getVisibleNodes();
+      const ids=visible.map(n=>n.data.id);
+      const key=id=>`${id}|${currentStart}|${currentEnd}`;
+      const need=ids.filter(id=>!perfCache.has(key(id)));
+      if(need.length){
+        const map=await getPerf(need,currentStart,currentEnd);
+        for(const id of need) perfCache.set(key(id), map[id]||{orders:0,pickup:0,months:1});
+      }
+      for(const n of visible) n.data.performance=perfCache.get(key(n.data.id));
+    }
+
+    // ===== 搜尋：命中者的所有祖先 + 所有子孫（未被淡化者保留） =====
+    let highlightIds=null; // Set<string>|null
+    function applySearch(){
+      const q=(searchName.value||'').trim();
+      if(!q){ highlightIds=null; update(root); updateSummary(); return; }
+
+      // 建索引（含未展開子孫）
+      const all=[]; (function walk(n){ all.push(n); (n.children||[]).forEach(walk); (n._children||[]).forEach(walk); })(root);
+      const hits=all.filter(n=> (n.data.name||'').includes(q));
+      if(!hits.length){ highlightIds=new Set(); update(root); updateSummary(); return; }
+
+      const keep=new Set();
+      const addAnc=(n)=>{ let cur=n; while(cur){ keep.add(cur.data.id); cur=cur.parent; } };
+      const addDesc=(n)=>{ (function dfs(x){ keep.add(x.data.id); (x.children||[]).forEach(dfs); (x._children||[]).forEach(dfs); })(n); };
+      for(const h of hits){ addAnc(h); addDesc(h); }
+      keep.delete('ROOT');
+      highlightIds=keep;
+      update(root); updateSummary();
+    }
+    const shouldDim=(d)=>{ if(!highlightIds) return false; return !highlightIds.has(d.data.id); };
+
+    const topAncestorId=(n)=>{ let cur=n; while(cur.parent && cur.parent.depth>0) cur=cur.parent; return cur.data.id; };
+
+    let firstPaint = true;  // 首次繪製
+    function update(source){
+      treeLayout(root);
+      const nodes=getVisibleNodes();
+      nodes.forEach(d => { d.topId = topAncestorId(d); });
+      const dur = firstPaint ? 0 : 600;   // 第一次不要動畫
+
+      // 不畫虛擬 ROOT 的連線
+      const links=nodes.filter(d=>d.parent && d.parent.depth>0);
+
+      const node=g.selectAll('.node').data(nodes, d=>d.data.id);
+      const enter=node.enter().append('g').attr('class','node')
+        // 第一次直接放在目標座標；其後才從 source 位置動畫到目標
+        .attr('transform', d=> firstPaint
+          ? `translate(${d.x},${d.y})`
+          : `translate(${source.x0||0},${source.y0||0})`)
+        .on('click', async (evt,d)=>{ toggle(d); await refreshVisiblePerf(); update(d); updateSummary(); });
+
+      enter.append('circle').attr('r',8);
+      enter.append('text').attr('class','name-text').attr('dy','-2.5em').text(d=>d.data.name);
+      enter.append('text').attr('class','level-text').attr('dy','-1.2em').text(d=>d.data.level||'');
+     
+      // 建立「訂貨」文字  //
+      enter.append('text')
+        .attr('class', 'orders-text')
+        .attr('dy', '1.8em')
+        .text(d => {
+          const p = d.data.performance || {orders:0, months:1};
+          const avg = p.orders / (p.months || 1);
+          return `訂：${Math.round(p.orders)}萬`;  // ★
+        });
+     
+      // 建立「提貨」文字  //
+      enter.append('text')
+        .attr('class', 'pickup-text')
+        .attr('dy', '3.0em')
+        .text(d => {
+          const p = d.data.performance || {pickup:0, months:1};
+          const avg = p.pickup / (p.months || 1);
+          return `提：${Math.round(p.pickup)}萬 `;
+      });
+
+      const merged=enter.merge(node);
+      merged.transition().duration(dur).attr('transform', d=>`translate(${d.x},${d.y})`);
+      merged.select('circle')
+        .attr('r',8)
+        .style('fill', d=>levelFill(d.data.level))
+        .style('stroke-width', d=>isHighPerformer(d)?3:2)
+        .style('stroke', d=>isHighPerformer(d)?'#fff600':levelStroke(d.data.level));
+  
+      // 更新「訂貨」  //
+      merged.select('.orders-text')
+        .text(d => {
+          const p = d.data.performance || {orders:0, months:1};
+          const avg = p.orders / (p.months || 1);
+          return `訂貨：${Math.round(p.orders)}萬`;  // ★
+        });
+      
+      // 更新「提貨」  //
+      merged.select('.pickup-text')
+        .text(d => {
+          const p = d.data.performance || {pickup:0, months:1};
+          const avg = p.pickup / (p.months || 1);
+          return `提貨：${Math.round(p.pickup)}萬`;  // ★
+        });
+      
+      merged.style('opacity', d=> shouldDim(d)? .5 : 1);
+
+      node.exit().transition().duration(400)
+        .attr('transform', d=>`translate(${source.x||0},${source.y||0})`).remove();
+
+      const link=g.selectAll('.link').data(links, d=>d.data.id);
+      const linkEnter=link.enter().insert('path','g').attr('class','link')
+        .attr('d', d=> firstPaint ? diagonal(d,d.parent)
+          : diagonal({x:source.x0||0,y:source.y0||0}, {x:source.x0||0,y:source.y0||0}));
+      linkEnter.merge(link).transition().duration(dur)
+        .attr('d', d=> diagonal(d,d.parent))
+        .style('opacity', d=> {
+          if(!highlightIds) return 1;
+          return (highlightIds.has(d.data.id) && highlightIds.has(d.parent.data.id)) ? 1 : .5;
+        });
+      link.exit().transition().duration(400)
+        .attr('d', d=>{ const o={x:source.x||0,y:source.y||0}; return diagonal(o,o); }).remove();
+
+      nodes.forEach(d=>{ d.x0=d.x; d.y0=d.y; });
+
+      // 第一次畫完就立即 fit（無動畫），之後就保持原本流程
+      if (firstPaint) {
+        fitToContentTop();
+        firstPaint = false;
+        }
+      }
+
+    function toggle(d){
+      if(d.children){ d._children=d.children; d._children.forEach(collapse); d.children=null; }
+      else { d.children=d._children; d._children=null; }
+    }
+    function diagonal(s,d){ return `M ${s.x} ${s.y} C ${s.x} ${(s.y+d.y)/2}, ${d.x} ${(s.y+d.y)/2}, ${d.x} ${d.y}`; }
+
+    // === 摘要：無搜尋→所有可見；有搜尋→未半透明 ===
+    function updateSummary(){
+      let nodes=getVisibleNodes();
+      if (highlightIds) nodes = nodes.filter(d => !shouldDim(d));
+
+      let totalOrders=0,totalPickup=0,totalMembers=0,high=0;
+      for(const n of nodes){
+        if(n.depth===0) continue;
+        totalMembers++;
+        const p=n.data.performance||{orders:0,pickup:0,months:1};
+        totalOrders+=p.orders; totalPickup+=p.pickup;
+        if ((p.orders / p.months) >= HIGH_THRESHOLD) high++;
+      }
+      document.getElementById('totalOrders').textContent=totalOrders.toLocaleString();
+      document.getElementById('totalPickup').textContent=totalPickup.toLocaleString();
+      document.getElementById('totalMembers').textContent=totalMembers;
+      document.getElementById('highPerformers').textContent=high;
+    }
+  </script>
+</body>
+</html>
