@@ -31,6 +31,12 @@
     .orders-text{font-size:10px;fill:#27ae60;font-weight:700;dominant-baseline:middle}
     .pickup-text{font-size:10px;fill:#8e44ad;font-weight:700;dominant-baseline:middle}
     .link{fill:none;stroke:#bdc3c7;stroke-width:2px;stroke-opacity:.85}
+
+    /* --- Zoom/Pan 視覺與尺寸 --- */
+    #chart svg{ width:100%; height:70vh; display:block; }
+    #chart svg.grabbing{ cursor:grabbing; }
+    #chart svg{ cursor:grab; }
+    
   </style>
 </head>
 <body>
@@ -69,6 +75,11 @@
       </div>
         
       <div id="chart"></div>
+      <div id="zoomControls" style="position:absolute; right:24px; top:24px; display:flex; gap:6px; z-index:2;">
+        <button id="btnZoomIn"  style="padding:6px 10px">＋</button>
+        <button id="btnZoomOut" style="padding:6px 10px">－</button>
+        <button id="btnFit"     style="padding:6px 10px">Fit</button>
+     </div>
       
       <div class="stats-summary">
         <div class="stat-item"><span class="stat-value" id="totalOrders">0</span><span class="stat-label">總訂貨金額 (萬元)</span></div>
@@ -83,8 +94,8 @@
     const treeData = {
       id:'ROOT', name:'ROOT', level:'ROOT', children:[
         { id:'CEO001', name:'林執行長', level:'經銷商', children:[
-          { id:'R001', name:'王大名', level:'高級', children:[
-            { id:'T001', name:'李安亭', level:'中級', children:[
+          { id:'R001', name:'王大名', level:'經銷商', children:[
+            { id:'T001', name:'李安亭', level:'高級', children:[
               { id:'M001', name:'陳小美', level:'一般' },
               { id:'M002', name:'張志明', level:'一般' },
               { id:'M008', name:'侯雅慧', level:'初級', children:[
@@ -92,25 +103,25 @@
                 { id:'S002', name:'鄭一凡', level:'一般' }
               ]}
             ]},
-            { id:'T002', name:'黃定和', level:'中級', children:[
-              { id:'M003', name:'劉大偉', level:'一般' },
+            { id:'T002', name:'黃定和', level:'高級', children:[
+              { id:'M003', name:'劉大偉', level:'初級' },
               { id:'M004', name:'周美麗', level:'初級', children:[
                 { id:'S003', name:'傅宛如', level:'一般' }
               ]},
               { id:'M009', name:'林亭安', level:'一般' }
            ]},
-            { id:'T005', name:'曾國華', level:'初級', children:[
+            { id:'T005', name:'曾國華', level:'高級', children:[
               { id:'M011', name:'許俊安', level:'一般' },
               { id:'M012', name:'蕭婉婷', level:'一般' }
             ]}
           ]},
-          { id:'R002', name:'趙堅目', level:'高級', children:[
+          { id:'R002', name:'趙堅目', level:'經銷商', children:[
             { id:'T003', name:'吳合', level:'中級', children:[
               { id:'M005', name:'馮小強', level:'一般' },
               { id:'M006', name:'蔡雅婷', level:'初級' },
               { id:'M013', name:'林宗翰', level:'一般' }
             ]},
-            { id:'T004', name:'許一二', level:'初級', children:[
+            { id:'T004', name:'許一二', level:'高級', children:[
               { id:'M007', name:'謝小芬', level:'一般' },
               { id:'M010', name:'楊信宏', level:'一般' },
               { id:'M014', name:'鍾惠文', level:'初級' }
@@ -203,11 +214,34 @@
 
     const margin={top:120,right:40,bottom:40,left:40};
     const width=1200-margin.left-margin.right, height=800-margin.top-margin.bottom;
-    const svg=d3.select('#chart').append('svg')
-      .attr('width',width+margin.left+margin.right)
-      .attr('height',height+margin.top+margin.bottom);
-    g=svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
-    treeLayout=d3.tree().size([width,height]);
+
+    // 尺寸
+    const margin = {top:120,right:40,bottom:40,left:40};
+    const width  = 1200 - margin.left - margin.right;
+    const height = 800  - margin.top  - margin.bottom;
+
+    // SVG + 兩層 <g>：zoomLayer 會被縮放/平移，g 是你原本畫圖的座標系(含 margin)
+    const svg = d3.select('#chart').append('svg')
+      .attr('viewBox', [0, 0, width + margin.left + margin.right, height + margin.top + margin.bottom].join(' '))
+      .attr('preserveAspectRatio','xMidYMid meet');
+
+    const zoomLayer = svg.append('g');  // <— 這層拿來 zoom/pan
+    const g = zoomLayer.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+
+    treeLayout = d3.tree().size([width, height]);
+
+    // Zoom 行為
+    const zoom = d3.zoom()
+      .scaleExtent([0.3, 2])              // 最小/最大縮放
+      .on('zoom', (ev)=> zoomLayer.attr('transform', ev.transform));
+
+    svg.call(zoom).on('dblclick.zoom', null);   // 關掉雙擊放大（避免誤觸）
+    
+    // const svg=d3.select('#chart').append('svg')
+      //.attr('width',width+margin.left+margin.right)
+      //.attr('height',height+margin.top+margin.bottom);
+    //g=svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+    //treeLayout=d3.tree().size([width,height]);
     const HIGH_THRESHOLD = 106;
 
     // === 事件 ===
@@ -234,6 +268,47 @@
       await refreshVisiblePerf(); update(root); updateSummary();
     }
 
+    // 初始視角：稍微往內縮 & 左上留白
+    function centerInitial() {
+      const t = d3.zoomIdentity.translate(40, 40).scale(1);
+      svg.call(zoom.transform, t);
+    }
+    centerInitial();
+
+    // Fit to content：自動把所有節點都塞進視窗
+    function fitToContent(padding = 40) {
+      // 用 <g> 的外框尺寸來計算
+      const bbox = g.node().getBBox();
+      const fullW = +svg.attr('viewBox').split(' ')[2];
+      const fullH = +svg.attr('viewBox').split(' ')[3];
+
+      const scale = Math.max(0.3, Math.min(
+        2,
+        (fullW - padding*2) / bbox.width,
+        (fullH - padding*2) / bbox.height
+      ));
+
+      const tx = (fullW  - bbox.width  * scale)/2 - bbox.x * scale;
+      const ty = (fullH  - bbox.height * scale)/2 - bbox.y * scale;
+
+      const t = d3.zoomIdentity.translate(tx, ty).scale(scale);
+      svg.transition().duration(500).call(zoom.transform, t);
+    }
+
+    // 讓拖曳時有「抓取」游標
+    svg.on('mousedown', ()=> svg.classed('grabbing', true));
+    d3.select(window).on('mouseup', ()=> svg.classed('grabbing', false));
+
+    // 控制鈕
+    d3.select('#btnZoomIn') .on('click', ()=> svg.transition().duration(250).call(zoom.scaleBy, 1.2));
+    d3.select('#btnZoomOut').on('click', ()=> svg.transition().duration(250).call(zoom.scaleBy, 1/1.2));
+    d3.select('#btnFit')    .on('click', ()=> fitToContent());
+
+    // 畫面更新後(展開/收合/搜尋)也可自動 fit（選擇性）
+    function afterUpdateAutoFit(){
+      // fitToContent(); // 若想每次都自動 fit，取消這行註解
+    }
+    
     function collapse(n){ if(n.children){ n._children=n.children; n._children.forEach(collapse); n.children=null; } }
     function isHighPerformer(d){
       const p = d.data.performance;
