@@ -293,15 +293,17 @@
       await refreshVisiblePerf();
       update(root);
       updateSummary();
+      fitToContentTop();   
 
       // 畫完後置中到上方
       setTimeout(() => fitToTopCenter(48), 0);
     }
 
-    const FIT_PADDING = 48;      // 四周留白
-    const FIT_BUMP    = 1.25;    // 初始放大一點點（>1 會更近，<1 會更遠）
-    const ZOOM_MIN    = 0.4;     // 允許最小縮放
-    const ZOOM_MAX    = 2.5;     // 允許最大縮放
+    const FIT_PADDING_TOP = 30;   // 上方留白（越大越往下）
+    const FIT_PADDING     = 40;   // 左右/下方留白
+    const FIT_BUMP        = 1.4;  // 初始放大一點點（>1 會更近，<1 會更遠） 
+    const ZOOM_MIN        = 0.4;  // 允許最小縮放
+    const ZOOM_MAX        = 2.5;  // 允許最大縮放
     
     // 置中（水平）＋貼上方（垂直），自動縮放到看得下
     function fitToContentTop() {
@@ -317,19 +319,22 @@
 
       const [ , , fullW, fullH ] = svg.attr('viewBox').split(' ').map(Number);
 
-        // 先算真正 fit 的比例，再乘上一點 bump 讓畫面更充實
-        const baseScale = Math.min(
-          (fullW - FIT_PADDING * 2) / b.width,
-          (fullH - FIT_PADDING * 3) / b.height
-        );
-        const k = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, baseScale * FIT_BUMP));
+      // 先用真正 fit 算出 baseScale，再乘上 BUMP 讓比例更大些
+      const baseScale = Math.min(
+        (fullW - FIT_PADDING * 2) / b.width,
+        (fullH - (FIT_PADDING_TOP + FIT_PADDING)) / b.height
+      );
+      const k = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, baseScale * FIT_BUMP));
 
-      // 水平置中、垂直貼上方（pad）
-      const tx = (fullW - b.width * scale) / 2 - b.x * scale;
-      const ty = pad - b.y * scale;
+      // ★ 用「內容中心對齊視窗中心」的方式算水平位移，避免偏左
+      const contentCx = b.x + b.width / 2;
+      const tx = (fullW / 2) - (contentCx * k);
 
-      const t = d3.zoomIdentity.translate(tx, ty).scale(scale);
-      svg.transition().duration(500).call(zoom.transform, t);
+      // ★ 垂直靠上（留一些上邊距）
+      const ty = FIT_PADDING_TOP - (b.y * k);
+
+      svg.transition().duration(500)
+         .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
     }
 
     // 讓拖曳時有「抓取」游標
