@@ -295,24 +295,33 @@
       updateSummary();
 
       // 畫完後置中到上方
-      setTimeout(() => fitToTopCenter(48, 0.20), 0);
+      setTimeout(() => fitToTopCenter(48), 0);
     }
 
-    // 初始視角：稍微往內縮 & 左上留白
-    function fitToTopCenter(padding = 20, topRatio = 0.25) {
-      const bbox = g.node().getBBox();                  // 圖形的實際外框
+    // 置中（水平）＋貼上方（垂直），自動縮放到看得下
+    function fitToContentTop(pad = 40) {
+      const node = g.node();
+      if (!node) return;
+
+     const b = node.getBBox();
+      // 圖還沒畫好或沒有內容 → 不做置中，避免跑飛
+      if (!isFinite(b.width) || !isFinite(b.height) || b.width === 0 || b.height === 0) {
+        svg.transition().duration(250).call(zoom.transform, d3.zoomIdentity);
+        return;
+      }
+
       const [ , , fullW, fullH ] = svg.attr('viewBox').split(' ').map(Number);
 
-      // 能讓內容在視窗內的縮放倍率（留 padding）
+      // 讓內容含 padding 能塞進 viewBox；下方多留一點空間
       const scale = Math.max(0.3, Math.min(
         2,
-        (fullW  - padding*2) / Math.max(bbox.width, 1),
-        (fullH  * (1 - topRatio) - padding*2) / Math.max(bbox.height, 1)
+        (fullW - pad * 2) / b.width,
+        (fullH - pad * 3) / b.height
       ));
 
-      // 水平置中；垂直靠上（topRatio 決定上方留白比例）
-      const tx = (fullW  - bbox.width  * scale) / 2 - bbox.x * scale;
-      const ty = (fullH * topRatio)               - bbox.y * scale;
+      // 水平置中、垂直貼上方（pad）
+      const tx = (fullW - b.width * scale) / 2 - b.x * scale;
+      const ty = pad - b.y * scale;
 
       const t = d3.zoomIdentity.translate(tx, ty).scale(scale);
       svg.transition().duration(500).call(zoom.transform, t);
