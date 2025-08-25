@@ -8,7 +8,11 @@
   <style>
     :root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; }
     *{box-sizing:border-box}
-    body{margin:0;font-family:'Microsoft JhengHei',system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg)}
+    body {
+          margin: 0;
+          font-family: 'Noto Sans TC', 'Microsoft JhengHei',system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+          background: var(--bg);
+    }
     .container{max-width:1400px;margin:16px auto;background:var(--card);border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.08);overflow:hidden}
     .header{position:relative;padding:20px;color:#fff;background:linear-gradient(135deg,#2c3e50 0%,#3498db 100%)}
     .header h1{margin:0 0 6px;font-size:22px}
@@ -54,7 +58,8 @@
     
     <div class="chart-container">
       <div class="instructions">
-        📊 使用日期區間與搜尋人名。等級配色：
+        使用日期區間與搜尋人名。
+        等級配色：
         <div>
           <span class="dot dot-dealer"></span> 經銷商　
           <span class="dot dot-level"></span> 高/中/初級　
