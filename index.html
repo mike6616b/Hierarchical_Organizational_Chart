@@ -110,7 +110,7 @@ function generateOrgTree(opts = {}) {
   const {
     seed = Date.now(),              // 固定種子可重現結果
     dealers = 3,                    // 經銷商數量（ROOT 下一層）
-    depth = 5,                      // 最大深度（含 ROOT 層）
+    depth = 8,                      // 最大深度（含 ROOT 層）
     // 各層分支數範圍（最小, 最大），從 經銷商 → 高級 → 中級 → 初級 → 一般
     branching = {
       dealer: [3, 5],               // 經銷商底下的「高級/中級起點」數
@@ -286,8 +286,8 @@ function regenerateAndRerender(updateFn, userOpts = {}){
 
     //treeLayout = d3.tree().size([width, height]);
     //可調間距
-    const XGAP = 180;   // 同層左右間距
-    const YGAP = 140;   // 父子垂直距離
+    const XGAP = 120;   // 同層左右間距
+    const YGAP = 100;   // 父子垂直距離
     treeLayout = d3.tree()
       .nodeSize([XGAP, YGAP])
       .separation((a,b)=> (a.parent === b.parent ? 1.2 : 1.8));
@@ -461,25 +461,17 @@ function regenerateAndRerender(updateFn, userOpts = {}){
       enter.append('text').attr('class','name-text').attr('dy','-2.5em').text(d=>d.data.name);
       enter.append('text').attr('class','level-text').attr('dy','-1.2em').text(d=>d.data.level||'');
      
-      // 建立「訂貨」文字  //
+      // 建立「訂貨」文字 //
       enter.append('text')
         .attr('class', 'orders-text')
         .attr('dy', '1.8em')
-        .text(d => {
-          const p = d.data.performance || {orders:0, months:1};
-          const avg = p.orders / (p.months || 1);
-          return `訂：${Math.round(p.orders)}萬`;  // ★
-        });
-     
-      // 建立「提貨」文字  //
+        .text(d => `訂貨：${Math.round(d.data.order || 0)}萬`);
+
+      // 建立「提貨」文字 //
       enter.append('text')
         .attr('class', 'pickup-text')
         .attr('dy', '3.0em')
-        .text(d => {
-          const p = d.data.performance || {pickup:0, months:1};
-          const avg = p.pickup / (p.months || 1);
-          return `提：${Math.round(p.pickup)}萬 `;
-      });
+        .text(d => `提貨：${Math.round(d.data.pickup || 0)}萬`);
 
       const merged=enter.merge(node);
       merged.transition().duration(dur).attr('transform', d=>`translate(${d.x},${d.y})`);
@@ -489,21 +481,13 @@ function regenerateAndRerender(updateFn, userOpts = {}){
         .style('stroke-width', d=>isHighPerformer(d)?3:2)
         .style('stroke', d=>isHighPerformer(d)?'#fff600':levelStroke(d.data.level));
   
-      // 更新「訂貨」  //
+      // 更新「訂貨」 //
       merged.select('.orders-text')
-        .text(d => {
-          const p = d.data.performance || {orders:0, months:1};
-          const avg = p.orders / (p.months || 1);
-          return `訂貨：${Math.round(p.orders)}萬`;  // ★
-        });
-      
-      // 更新「提貨」  //
+       .text(d => `訂貨：${Math.round(d.data.order || 0)}萬`);
+
+      // 更新「提貨」 //
       merged.select('.pickup-text')
-        .text(d => {
-          const p = d.data.performance || {pickup:0, months:1};
-          const avg = p.pickup / (p.months || 1);
-          return `提貨：${Math.round(p.pickup)}萬`;  // ★
-        });
+        .text(d => `提貨：${Math.round(d.data.pickup || 0)}萬`);
       
       merged.style('opacity', d=> shouldDim(d)? .5 : 1);
 
