@@ -372,7 +372,7 @@
     }
 
     // 將單一節點置中（水平）且靠上（垂直）
-    function centerOnNode(d, topPad = 90, keepScale) {
+    function centerOnNode(d, topPad = 50, keepScale) {
       if (!d) return;
       const [ , , fullW ] = svg.attr('viewBox').split(' ').map(Number);
       const k = keepScale ?? d3.zoomTransform(svg.node()).k;     // 維持目前縮放
