@@ -61,10 +61,11 @@
       <div class="date-filter">
         <input type="date" id="startDate" value="2025-01-01" />
         <input type="date" id="endDate" value="2025-08-15" />
-        <button id="btnApply">更新數據</button>
+        <="btnApply">更新數據</button>
         <input type="text" id="searchName" placeholder="搜尋人名" />
-        <button id="btnSearch" style="background:#3b82f6">搜尋</button>
-        <button id="btnClear" style="background:#6b7280">清除</button>
+        <button id="btnSearch"  style="background:#3b82f6">搜尋</button>
+        <button id="btnClear"   style="background:#f51111">清除</button>
+        <button id="btn-expand" style="background:#6b7280">展開</button>
       </div>
     </div>
 
@@ -115,8 +116,8 @@ function generateOrgTree(opts = {}) {
     branching = {
       dealer: [3, 6],               // 經銷商底下的「高級/中級起點」數
       senior: [4, 8],               // 高級底下的中級/初級數
-      mid:    [5, 7],               // 中級底下的初級/一般數
-      junior: [2, 5],               // 初級底下的一般數（已無見習）
+      mid:    [2, 7],               // 中級底下的初級/一般數
+      junior: [1, 6],               // 初級底下的一般數
       general:[0, 0],               // 一般為葉節點
     },
     // 各層績效區間與提貨比（pickup 相對訂貨，確保 ≤ 訂貨）
@@ -143,9 +144,9 @@ function generateOrgTree(opts = {}) {
   const nextId = prefix => { const n=(idCounters.get(prefix)||0)+1; idCounters.set(prefix,n); return prefix+String(n).padStart(3,'0'); };
 
   // 中文姓名片段（可擴充）
-  const lastNames = '王李張劉陳林黃趙周吳許何高謝郭曾蕭蘇馬柯賴韓簡鍾鄭邱彭方江杜賴賴'.split('');
-  const givenA = '小大中安宥冠柏哲孟家雅怡佩芯孟志庭宸思凱承博俊品語彤婉筑妍筠苑昀'.split('');
-  const givenB = '明偉豪霖諾瑜欣柔雯瑜庭賢傑瑋均蓉華潔媛婷潔安甄翔宇洋恩熒雲淇'.split('');
+  const lastNames = '李王張劉陳楊黃趙周吳徐孫朱馬胡郭林何高梁鄭羅宋謝唐韓曹許鄧蕭馮曾潘蔡蔣袁於杜葉蘇魏呂丁沈姜範盧賈傅鐘白汪錢廖湯文嚴石黎薛金滕康田顧孟方尹江史'.split('');
+  const givenA = '小大中安宥冠柏哲孟家雅怡佩芯孟志庭宸思凱承博俊品語彤婉筑妍筠苑昀偉敏芳麗傑勇華靜亮慧欣濤磊丹凱娜康秀傑浩琳楠剛宏宇寧萍潔鵬燕遠娟毅強暉玲兵紅明偉俊靜慧萍莉文宇琪琳佳偉濤霞燕剛鳳傑勇敏敏靜磊丹凱楠娜宏宇寧萍潔鵬遠娟毅強暉玲兵紅'.split('');
+  const givenB = '明偉豪霖諾瑜欣柔雯瑜庭賢傑瑋均蓉華潔媛婷潔安甄翔宇洋恩熒雲淇偉敏芳麗傑勇華靜亮慧欣濤磊丹凱娜康秀傑浩琳楠剛宏宇寧萍潔鵬燕遠娟毅強暉玲兵紅明偉俊靜慧萍莉文宇琪琳佳偉濤霞燕剛鳳傑勇敏敏靜磊丹凱楠娜宏宇寧萍潔鵬遠娟毅強暉玲兵紅'.split('');
   function randName(){ return pick(lastNames) + pick(givenA) + pick(givenB); }
 
   // 層級定義與 id prefix（與你現有圖例相容）
@@ -386,6 +387,29 @@ function regenerateAndRerender(updateFn, userOpts = {}){
     d3.select('#btnZoomOut').on('click', ()=> svg.transition().duration(200).call(zoom.scaleBy, 1/1.2));
     d3.select('#btnFit')    .on('click', ()=> fitToContentTop());
 
+    let searchKeyword = ''; // 你現有的搜尋字串
+
+    d3.select('#btn-expand').on('click', () => {
+      if (!root) return;
+      const kw = (searchKeyword || '').trim();
+      if (!kw) return;
+
+      const matches = root.descendants()
+        .filter(n => (n.data.name || '').includes(kw));
+
+      matches.forEach(n => {
+        expandAncestors(n);
+        expandSubtree(n);
+      });
+
+      update(); // 你現有的重繪
+    });
+
+    d3.select('#searchBox').on('input', function(){
+      searchKeyword = this.value;
+      update();
+    });
+    
     // 畫面更新後(展開/收合/搜尋)也可自動 fit（選擇性）
     function afterUpdateAutoFit(){
       fitToContentTop();
@@ -397,6 +421,19 @@ function regenerateAndRerender(updateFn, userOpts = {}){
     }
     function levelFill(l){ if(l==='經銷商')return'#5582b4'; if(l==='高級'||l==='中級'||l==='初級')return'#f7959d'; if(l==='一般')return'#deabe9'; return'#ccc'; }
     function levelStroke(l){ if(l==='經銷商')return'#3f668e'; if(l==='高級'||l==='中級'||l==='初級')return'#d86a74'; if(l==='一般')return'#b687c8'; return'#999'; }
+
+    // 依 D3 常見折疊模式：children 可見，_children 折疊
+    function expandNode(d){
+      if (d._children){ d.children = d._children; d._children = null; }
+    }
+    function expandAncestors(d){
+      let p = d;
+      while (p){ expandNode(p); p = p.parent; }
+    }
+    function expandSubtree(d){
+      expandNode(d);
+      if (d.children) d.children.forEach(expandSubtree);
+    }
 
     // 只收集目前可見節點（展開中的）
     function collectVisible(n,out){ if(n.depth>0) out.push(n); if(n.children) n.children.forEach(c=>collectVisible(c,out)); }
