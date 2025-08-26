@@ -337,7 +337,11 @@ function regenerateAndRerender(updateFn, userOpts = {}){
     async function init(){
       const data=await getTreeRoot();
       root=d3.hierarchy(data,d=>d.children);
-      root.children?.forEach(collapse); // 兩條主線預設收合
+      if (root.children) {
+        for (const dealer of root.children) {
+          if (dealer.children) dealer.children.forEach(collapse); // 折孫輩起
+        }
+      }
       root.x0=width/2; root.y0=0;
       
       await refreshVisiblePerf();
@@ -396,25 +400,22 @@ function regenerateAndRerender(updateFn, userOpts = {}){
 
     d3.select('#searchName').on('input', function(){
       searchKeyword = this.value.trim();
-      update();
+      update(root);
     });
 
-      const matches = root.descendants()
-        .filter(n => (n.data.name || '').includes(kw));
+    d3.select('#btn-expand').on('click', async () => {
+      if (!root) return;
+      const kw = searchKeyword.trim();
+      if (!kw) return;
 
-      matches.forEach(n => {
-        expandAncestors(n);
-        expandSubtree(n);
-      });
+      const matches = root.descendants().filter(n => (n.data.name || '').includes(kw));
+      matches.forEach(n => { expandAncestors(n); expandSubtree(n); });
 
-      update(); // 你現有的重繪
+      await refreshVisiblePerf();
+      update(root);
+      updateSummary();
     });
-
-    d3.select('#searchBox').on('input', function(){
-      searchKeyword = this.value;
-      update();
-    });
-    
+        
     // 畫面更新後(展開/收合/搜尋)也可自動 fit（選擇性）
     function afterUpdateAutoFit(){
       fitToContentTop();
