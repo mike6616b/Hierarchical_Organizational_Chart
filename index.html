@@ -262,8 +262,8 @@ function regenerateAndRerender(updateFn, userOpts = {}){
         const map = {};
         for (const id of ids){
           const avg = perfProfile[id] || {order:0,pickup:0};
-          const orders = Math.round(avg.order * 1);   // 或 * months
-          const pickup = Math.round(avg.pickup * 1);  // 或 * months
+          const orders=Math.round(avg.order);   // 或 * months，看你要顯示總額還是月均
+          const pickup=Math.round(avg.pickup);
           map[id] = { orders, pickup, months };
         }
         return map;
