@@ -110,22 +110,22 @@ function generateOrgTree(opts = {}) {
   const {
     seed = Date.now(),              // 固定種子可重現結果
     dealers = 3,                    // 經銷商數量（ROOT 下一層）
-    depth = 8,                      // 最大深度（含 ROOT 層）
+    depth = 10,                      // 最大深度（含 ROOT 層）
     // 各層分支數範圍（最小, 最大），從 經銷商 → 高級 → 中級 → 初級 → 一般
     branching = {
-      dealer: [3, 5],               // 經銷商底下的「高級/中級起點」數
-      senior: [2, 4],               // 高級底下的中級/初級數
-      mid:    [2, 4],               // 中級底下的初級/一般數
+      dealer: [3, 6],               // 經銷商底下的「高級/中級起點」數
+      senior: [4, 8],               // 高級底下的中級/初級數
+      mid:    [5, 7],               // 中級底下的初級/一般數
       junior: [2, 5],               // 初級底下的一般數（已無見習）
       general:[0, 0],               // 一般為葉節點
     },
     // 各層績效區間與提貨比（pickup 相對訂貨，確保 ≤ 訂貨）
     perfByLevel = {
       ROOT:      { order:[0,0],    pickupRatio:[0,0] },
-      經銷商:     { order:[350,500], pickupRatio:[0.65,0.9] },
-      高級:       { order:[120,220], pickupRatio:[0.65,0.9] },
-      中級:       { order:[60,110],  pickupRatio:[0.6,0.9] },
-      初級:       { order:[40,80],   pickupRatio:[0.55,0.85] },
+      經銷商:     { order:[350,500], pickupRatio:[0.55,0.9] },
+      高級:       { order:[120,220], pickupRatio:[0.4,0.9] },
+      中級:       { order:[60,110],  pickupRatio:[0.45,0.9] },
+      初級:       { order:[40,80],   pickupRatio:[0.3,0.85] },
       一般:       { order:[18,40],   pickupRatio:[0.5,0.8] },
     }
   } = opts;
@@ -224,9 +224,9 @@ function generateOrgTree(opts = {}) {
 
 // ======= 預設生成一棵，讓外部直接使用 =======
 const { treeData, perfProfile, seed } = generateOrgTree({
-  seed: 'demo-2025-08-25',
+  seed: 'demo-2025-08-26',
   dealers: 3,
-  depth: 5,
+  depth: 10,
 });
 
 // 掛到 window，方便 D3 與 DevTools 使用
