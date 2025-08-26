@@ -167,7 +167,7 @@ function generateOrgTree(opts = {}) {
   // 產生節點
   function makeNode(level){
     const id = nextId(prefixByLevel[level] || 'N');
-    const name = randName(); // 不再加「執行長」
+    const name = randName(); 
     const node = { id, name, level, metrics: { order:0, pickup:0 }, order:0, pickup:0, 訂貨:0, 提貨:0 };
     return node;
   }
@@ -286,8 +286,8 @@ function regenerateAndRerender(updateFn, userOpts = {}){
 
     //treeLayout = d3.tree().size([width, height]);
     //可調間距
-    const XGAP = 120;   // 同層左右間距
-    const YGAP = 100;   // 父子垂直距離
+    const XGAP = 100;   // 同層左右間距
+    const YGAP = 120;   // 父子垂直距離
     treeLayout = d3.tree()
       .nodeSize([XGAP, YGAP])
       .separation((a,b)=> (a.parent === b.parent ? 1.2 : 1.8));
@@ -393,8 +393,7 @@ function regenerateAndRerender(updateFn, userOpts = {}){
     
     function collapse(n){ if(n.children){ n._children=n.children; n._children.forEach(collapse); n.children=null; } }
     function isHighPerformer(d){
-      const p = d.data.performance;
-      return p && p.months && (p.orders / p.months) >= HIGH_THRESHOLD;
+      return (d?.data?.order ?? 0) >= HIGH_THRESHOLD;
     }
     function levelFill(l){ if(l==='經銷商')return'#5582b4'; if(l==='高級'||l==='中級'||l==='初級')return'#f7959d'; if(l==='一般')return'#deabe9'; return'#ccc'; }
     function levelStroke(l){ if(l==='經銷商')return'#3f668e'; if(l==='高級'||l==='中級'||l==='初級')return'#d86a74'; if(l==='一般')return'#b687c8'; return'#999'; }
