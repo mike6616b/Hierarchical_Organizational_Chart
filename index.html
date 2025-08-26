@@ -277,18 +277,30 @@ function regenerateAndRerender(updateFn, userOpts = {}){
     let currentStart='2025-01-01', currentEnd='2025-08-15';
     const perfCache=new Map();
 
-    // 尺寸
+    // 自適應尺寸
     const margin = {top:120,right:40,bottom:40,left:40};
-    const width  = 1200 - margin.left - margin.right;
-    const height = 800  - margin.top  - margin.bottom;
 
-    // SVG + 兩層 <g>：zoomLayer 會被縮放/平移，g 是你原本畫圖的座標系(含 margin)
     const svg = d3.select('#chart').append('svg')
-      .attr('viewBox', [0, 0, width + margin.left + margin.right, height + margin.top + margin.bottom].join(' '))
       .attr('preserveAspectRatio','xMidYMid meet');
 
-    const zoomLayer = svg.append('g');  // <— 這層拿來 zoom/pan
-    g = zoomLayer.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+    const zoomLayer = svg.append('g');
+    g = zoomLayer.append('g'); // transform 由 applySize 設
+
+    function applySize(){
+      const el = document.getElementById('chart');
+      const W  = el.clientWidth;
+      const H  = Math.max(500, Math.floor(window.innerHeight * 0.7)); // 70% 視窗高，至少 500
+      svg.attr('viewBox', [0, 0, W, H].join(' '));
+      g.attr('transform', `translate(${margin.left},${margin.top})`);
+    }
+    applySize();
+    window.addEventListener('resize', () => { applySize(); fitToContentTop(); });
+
+    // 取目前 viewBox 尺寸
+    function vbSize(){
+      const [ , , W, H ] = svg.attr('viewBox').split(' ').map(Number);
+      return { W, H };
+    }
 
     //treeLayout = d3.tree().size([width, height]);
     //可調間距
@@ -338,11 +350,12 @@ function regenerateAndRerender(updateFn, userOpts = {}){
       const data=await getTreeRoot();
       root=d3.hierarchy(data,d=>d.children);
       if (root.children) {
-        for (const dealer of root.children) {
-          if (dealer.children) dealer.children.forEach(collapse); // 折孫輩起
-        }
+        root._children = root.children;  // 折疊所有經銷商
+        root.children = null;
       }
-      root.x0=width/2; root.y0=0;
+
+      const { W } = vbSize();
+      root.x0 = W/2; root.y0 = 0;
       
       await refreshVisiblePerf();
       update(root);
