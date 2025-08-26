@@ -74,6 +74,7 @@
         <button id="btnSearch"  style="background:#3b82f6">搜尋</button>
         <button id="btnClear"   style="background:#f51111">清除</button>
         <button id="btn-expand" style="background:#6b7280">展開</button>
+        <button id="btnLocate"  style="background:#4b5563">定位</button>
       </div>
     </div>
 
@@ -272,7 +273,26 @@
     d3.select('#btnZoomIn').on('click', ()=> svg.transition().duration(200).call(zoom.scaleBy, 1.2));
     d3.select('#btnZoomOut').on('click',()=> svg.transition().duration(200).call(zoom.scaleBy, 1/1.2));
     d3.select('#btnFit').on('click', fitToContentTop);
+    d3.select('#btnLocate').on('click', async () => {
+      const kw = (document.getElementById('searchName').value || '').trim();
+      if (!kw || !root) return;
 
+      // 找到第一個名字包含關鍵字的節點（含未展開樹）
+      const all = [];
+      (function walk(n){ all.push(n); (n.children||[]).forEach(walk); (n._children||[]).forEach(walk); })(root);
+      const target = all.find(n => (n.data.name || '').includes(kw));
+      if (!target) return;
+
+      // 保證路徑可見：展開所有祖先（不強制展開整個子樹，避免太慢）
+      expandAncestors(target);
+
+      // 更新數據與佈局，之後定位
+      await refreshVisiblePerf();
+      update(root);
+      setTimeout(() => centerOnNode(target, 80), 0);  // 等 DOM 佈局完再移動
+    });
+
+    
     // ================================
     // 3) 初始化與互動
     // ================================
@@ -349,6 +369,25 @@
       const ty = FIT_PADDING_TOP - ((b.y + margin.top) * k);
 
       svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(k));
+    }
+
+    // 將單一節點置中（水平）且靠上（垂直）
+    function centerOnNode(d, topPad = 80, keepScale) {
+      if (!d) return;
+      const [ , , fullW ] = svg.attr('viewBox').split(' ').map(Number);
+      const k = keepScale ?? d3.zoomTransform(svg.node()).k;     // 維持目前縮放
+      const cx = fullW / 2;
+
+      // 目標點的「內容座標」需加上 margin
+      const px = margin.left + d.x;
+      const py = margin.top  + d.y;
+
+      // 解: (px*k + tx = cx), (py*k + ty = topPad)
+      const tx = cx     - px * k;
+      const ty = topPad - py * k;
+
+      svg.transition().duration(500)
+         .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
     }
 
     function collapse(n){ if(n.children){ n._children=n.children; n._children.forEach(collapse); n.children=null; } }
