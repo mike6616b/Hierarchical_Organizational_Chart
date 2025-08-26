@@ -176,7 +176,7 @@
       for(let i=0;i<dealers;i++){
         const dealer = makeNode('經銷商');
         const m = drawMetrics('經銷商');
-        Object.assign(dealer.metrics,m, { order:m.order,pickup:m.pickup, 訂貨:m.order, 提貨:m.pickup });
+        Object.assign(dealer, { metrics:m, order:m.order, pickup:m.pickup, 訂貨:m.order, 提貨:m.pickup });
         root.children.push(dealer);
         perfProfile[dealer.id] = { ...m };
       }
@@ -198,7 +198,7 @@
           const nextLevel = pick(plan.next);
           const child = makeNode(nextLevel);
           const m = drawMetrics(nextLevel);
-          Object.assign(child.metrics,m, { order:m.order,pickup:m.pickup, 訂貨:m.order, 提貨:m.pickup });
+          Object.assign(child,  { metrics:m, order:m.order, pickup:m.pickup, 訂貨:m.order, 提貨:m.pickup });
           node.children.push(child);
           perfProfile[child.id] = { ...m };
           queue.push({ node:child, depth:d+1 });
@@ -373,7 +373,12 @@
         const map = await getPerf(need,currentStart,currentEnd);
         for(const id of need) perfCache.set(key(id), map[id] || {orders:0,pickup:0,months:1});
       }
-      for(const n of visible) n.data.performance = perfCache.get(key(n.data.id));
+      for (const n of visible) {
+        const perf = perfCache.get(key(n.data.id)) || {orders:0, pickup:0, months:1};
+          n.data.performance = perf;
+          n.data.order  = perf.orders;   
+          n.data.pickup = perf.pickup;   
+      }
     }
 
     // 搜尋：命中者 + 其祖先/子孫留可視，其餘半透明
