@@ -304,8 +304,8 @@ function regenerateAndRerender(updateFn, userOpts = {}){
 
     //treeLayout = d3.tree().size([width, height]);
     //可調間距
-    const XGAP = 100;   // 同層左右間距
-    const YGAP = 120;   // 父子垂直距離
+    const XGAP = 80;   // 同層左右間距
+    const YGAP = 100;   // 父子垂直距離
     treeLayout = d3.tree()
       .nodeSize([XGAP, YGAP])
       .separation((a,b)=> (a.parent === b.parent ? 1.2 : 1.8));
