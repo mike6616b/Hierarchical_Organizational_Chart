@@ -155,10 +155,10 @@ function generateOrgTree(opts = {}) {
   // 依層給下一層候選與分支範圍鍵
   function childrenPlan(level){
     switch(level){
-      case '經銷商': return { next: ['高級','中級'], key:'dealer' };
-      case '高級':   return { next: ['中級','初級'], key:'senior' };
-      case '中級':   return { next: ['初級','一般'], key:'mid' };
-      case '初級':   return { next: ['一般'],        key:'junior' };
+      case '經銷商': return { next: ['經銷商','高級','中級'], key:'dealer' };
+      case '高級':   return { next: ['高級','中級','初級'], key:'senior' };
+      case '中級':   return { next: ['中級','初級','一般'], key:'mid' };
+      case '初級':   return { next: ['初級','一般'],        key:'junior' };
       case '一般':   return { next: [],               key:null };
       default:       return { next: [],               key:null };
     }
@@ -224,7 +224,7 @@ function generateOrgTree(opts = {}) {
 
 // ======= 預設生成一棵，讓外部直接使用 =======
 const { treeData, perfProfile, seed } = generateOrgTree({
-  seed: 'demo-2025-08-26',
+  seed: 'demo-2025-08-24',
   dealers: 3,
   depth: 10,
 });
@@ -488,7 +488,7 @@ function regenerateAndRerender(updateFn, userOpts = {}){
       merged.select('.pickup-text')
         .text(d => `提貨：${Math.round(d.data.pickup || 0)}萬`);
       
-      merged.style('opacity', d=> shouldDim(d)? .5 : 1);
+      merged.style('opacity', d=> shouldDim(d)? .3 : 1);
 
       node.exit().transition().duration(400)
         .attr('transform', d=>`translate(${source.x||0},${source.y||0})`).remove();
@@ -527,13 +527,20 @@ function regenerateAndRerender(updateFn, userOpts = {}){
       if (highlightIds) nodes = nodes.filter(d => !shouldDim(d));
 
       let totalOrders=0,totalPickup=0,totalMembers=0,high=0;
+      
       for(const n of nodes){
         if(n.depth===0) continue;
         totalMembers++;
-        const p=n.data.performance||{orders:0,pickup:0,months:1};
-        totalOrders+=p.orders; totalPickup+=p.pickup;
-        if ((p.orders / p.months) >= HIGH_THRESHOLD) high++;
+        
+        const order  = n.data.order  ?? n.data.metrics?.order  ?? 0;
+        const pickup = n.data.pickup ?? n.data.metrics?.pickup ?? 0;
+
+        totalOrders += order;
+        totalPickup += pickup;
+
+        if (order >= HIGH_THRESHOLD) high++;   // HIGH_THRESHOLD 單位：萬
       }
+      
       document.getElementById('totalOrders').textContent=totalOrders.toLocaleString();
       document.getElementById('totalPickup').textContent=totalPickup.toLocaleString();
       document.getElementById('totalMembers').textContent=totalMembers;
