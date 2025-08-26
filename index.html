@@ -350,8 +350,7 @@ function regenerateAndRerender(updateFn, userOpts = {}){
       const data=await getTreeRoot();
       root=d3.hierarchy(data,d=>d.children);
       if (root.children) {
-        root._children = root.children;  // 折疊所有經銷商
-        root.children = null;
+        root.children.forEach(collapse);  // 將經銷商的子孫折疊到 _children
       }
 
       const { W } = vbSize();
