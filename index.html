@@ -61,7 +61,7 @@
       <div class="date-filter">
         <input type="date" id="startDate" value="2025-01-01" />
         <input type="date" id="endDate" value="2025-08-15" />
-        <="btnApply">更新數據</button>
+        </button><="btnApply">更新數據</button>
         <input type="text" id="searchName" placeholder="搜尋人名" />
         <button id="btnSearch"  style="background:#3b82f6">搜尋</button>
         <button id="btnClear"   style="background:#f51111">清除</button>
@@ -259,9 +259,14 @@ function regenerateAndRerender(updateFn, userOpts = {}){
       async getPerf(ids,s,e){
         const d1=new Date(s), d2=new Date(e);
         const months=Math.max(1,(d2.getFullYear()-d1.getFullYear())*12+(d2.getMonth()-d1.getMonth())+1);
-        const map={}; for(const id of ids){ const avg=perfProfile[id]||0;
-          const orders=Math.round(avg*months), pickup=Math.round(orders*0.95);
-          map[id]={orders,pickup,months}; } return map;
+        const map = {};
+        for (const id of ids){
+          const avg = perfProfile[id] || {order:0,pickup:0};
+          const orders = Math.round(avg.order * 1);   // 或 * months
+          const pickup = Math.round(avg.pickup * 1);  // 或 * months
+          map[id] = { orders, pickup, months };
+        }
+        return map;
       }
     };
   </script>
@@ -389,10 +394,10 @@ function regenerateAndRerender(updateFn, userOpts = {}){
 
     let searchKeyword = ''; // 你現有的搜尋字串
 
-    d3.select('#btn-expand').on('click', () => {
-      if (!root) return;
-      const kw = (searchKeyword || '').trim();
-      if (!kw) return;
+    d3.select('#searchName').on('input', function(){
+      searchKeyword = this.value.trim();
+      update();
+    });
 
       const matches = root.descendants()
         .filter(n => (n.data.name || '').includes(kw));
