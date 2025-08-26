@@ -361,11 +361,7 @@ function regenerateAndRerender(updateFn, userOpts = {}){
       updateSummary(); 
     }
 
-    const FIT_PADDING_TOP = 30;   // 上方留白（越大越往下）
-    const FIT_PADDING     = 48;   // 左右/下方留白
-    const FIT_BUMP        = 1.6;  // 初始放大一點點（>1 會更近，<1 會更遠） 
-    const ZOOM_MIN        = 0.4;  // 允許最小縮放
-    const ZOOM_MAX        = 2.5;  // 允許最大縮放
+
     
     // 置中（水平）＋貼上方（垂直），自動縮放到看得下
     function fitToContentTop() {
@@ -373,7 +369,6 @@ function regenerateAndRerender(updateFn, userOpts = {}){
       if (!node) return;
 
      const b = node.getBBox();
-      // 若還沒有任何節點（或 bbox 無效）就直接回 1:1
       if (!isFinite(b.width) || !isFinite(b.height) || b.width === 0 || b.height === 0) {
         svg.transition().duration(250).call(zoom.transform, d3.zoomIdentity);
         return;
@@ -381,6 +376,12 @@ function regenerateAndRerender(updateFn, userOpts = {}){
 
       const [ , , fullW, fullH ] = svg.attr('viewBox').split(' ').map(Number);
 
+      const FIT_PADDING_TOP = 30;   // 上方留白（越大越往下）
+      const FIT_PADDING     = 48;   // 左右/下方留白
+      const FIT_BUMP        = 1.6;  // 初始放大一點點（>1 會更近，<1 會更遠） 
+      const ZOOM_MIN        = 0.4;  // 允許最小縮放
+      const ZOOM_MAX        = 2.5;  // 允許最大縮放
+      
       // 先用真正 fit 算出 baseScale，再乘上 BUMP 讓比例更大些
       const baseScale = Math.min(
         (fullW - FIT_PADDING * 2) / b.width,
@@ -389,11 +390,9 @@ function regenerateAndRerender(updateFn, userOpts = {}){
       const k = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, baseScale * FIT_BUMP));
 
       // ★ 用「內容中心對齊視窗中心」的方式算水平位移，避免偏左
-      const contentCx = b.x + b.width / 2;
+      const contentCx = b.x + b.width / 2 + margin.left;
       const tx = (fullW / 2) - (contentCx * k);
-
-      // ★ 垂直靠上（留一些上邊距）
-      const ty = FIT_PADDING_TOP - (b.y * k);
+      const ty = FIT_PADDING_TOP - (b.y + margin.top * k);
 
       svg.transition().duration(500)
          .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
@@ -425,6 +424,7 @@ function regenerateAndRerender(updateFn, userOpts = {}){
 
       await refreshVisiblePerf();
       update(root);
+      fitToContentTop(); 
       updateSummary();
     });
         
