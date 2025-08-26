@@ -63,8 +63,9 @@
         <input type="date" id="endDate" value="2025-08-15" />
         <button id="btnApply">更新數據</button>
         <input type="text" id="searchName" placeholder="搜尋人名" />
-        <button id="btnSearch" style="background:#3b82f6">搜尋</button>
-        <button id="btnClear" style="background:#6b7280">清除</button>
+        <button id="btnSearch"  style="background:#3b82f6">搜尋</button>
+        <button id="btnClear"   style="background:#f51111">清除</button>
+        <button id="btn-expand" style="background:#6b7280">展開</button>
       </div>
     </div>
 
@@ -106,102 +107,146 @@
 
   <script>
     // ------- Mock data -------
-    const treeData = {
-      id:'ROOT', name:'ROOT', level:'ROOT', children:[
-        { id:'CEO001', name:'林執行長', level:'經銷商', children:[
-          { id:'R001', name:'王大名', level:'經銷商', children:[
-            { id:'T001', name:'李安亭', level:'高級', children:[
-              { id:'M001', name:'陳小美', level:'一般' },
-              { id:'M002', name:'張志明', level:'一般' },
-              { id:'M008', name:'侯雅慧', level:'初級', children:[
-                { id:'S001', name:'呂佩珊', level:'一般' },
-                { id:'S002', name:'鄭一凡', level:'一般' }
-              ]}
-            ]},
-            { id:'T002', name:'黃定和', level:'高級', children:[
-              { id:'M003', name:'劉大偉', level:'初級' },
-              { id:'M004', name:'周美麗', level:'初級', children:[
-                { id:'S003', name:'傅宛如', level:'一般' }
-              ]},
-              { id:'M009', name:'林亭安', level:'一般' }
-           ]},
-            { id:'T005', name:'曾國華', level:'高級', children:[
-              { id:'M011', name:'許俊安', level:'一般' },
-              { id:'M012', name:'蕭婉婷', level:'一般' }
-            ]}
-          ]},
-          { id:'R002', name:'趙堅目', level:'經銷商', children:[
-            { id:'T003', name:'吳合', level:'中級', children:[
-              { id:'M005', name:'馮小強', level:'一般' },
-              { id:'M006', name:'蔡雅婷', level:'初級' },
-              { id:'M013', name:'林宗翰', level:'一般' }
-            ]},
-            { id:'T004', name:'許一二', level:'高級', children:[
-              { id:'M007', name:'謝小芬', level:'一般' },
-              { id:'M010', name:'楊信宏', level:'一般' },
-              { id:'M014', name:'鍾惠文', level:'初級' }
-            ]}
-          ]},
-          { id:'R003', name:'張德興', level:'中級', children:[
-            { id:'T006', name:'吳冠廷', level:'初級', children:[
-              { id:'M015', name:'簡舒婷', level:'一般' },
-              { id:'M016', name:'陳宏宇', level:'一般' }
-            ]}
-          ]}
-        ]},
-        { id:'LEAD200', name:'王超人', level:'經銷商', children:[
-          { id:'R101', name:'陳飛俠', level:'高級', children:[
-            { id:'T101', name:'高小龍', level:'中級', children:[
-              { id:'U001', name:'林小虎', level:'一般' },
-              { id:'U002', name:'彭美琪', level:'一般' },
-              { id:'U003', name:'宋湘怡', level:'初級', children:[
-                { id:'S004', name:'蔡凱文', level:'一般' },
-                { id:'S005', name:'趙子瑄', level:'一般' }
-              ]}
-            ]},
-            { id:'T102', name:'曾明慧', level:'初級', children:[
-              { id:'U004', name:'杜思妤', level:'一般' },
-              { id:'U005', name:'魏家豪', level:'一般' }
-            ]},
-            { id:'T105', name:'賴志成', level:'中級', children:[
-              { id:'U011', name:'方雅雯', level:'一般' },
-              { id:'U012', name:'林永昌', level:'一般' },
-              { id:'U013', name:'江惠如', level:'初級' }
-            ]}
-          ]},
-          { id:'R102', name:'張宇宙', level:'中級', children:[
-            { id:'T103', name:'何青青', level:'初級', children:[
-              { id:'U006', name:'邱柏翰', level:'一般' },
-              { id:'U007', name:'連語瞳', level:'一般' }
-            ]},
-            { id:'T104', name:'賴思思', level:'中級', children:[
-              { id:'U008', name:'韓可欣', level:'初級' },
-              { id:'U009', name:'柯哲瑋', level:'一般' },
-              { id:'U010', name:'簡銘昌', level:'一般' }
-            ]}
-          ]},
-          { id:'R103', name:'韓志偉', level:'初級', children:[
-            { id:'T106', name:'龔怡君', level:'一般' },
-            { id:'T107', name:'郭政佑', level:'中級', children:[
-              { id:'U014', name:'廖心慈', level:'一般' },
-              { id:'U015', name:'曾智翔', level:'一般' }
-            ]}
-          ]}
-        ]}
-      ]
-    };
+function generateOrgTree(opts = {}) {
+  const {
+    seed = Date.now(),              // 固定種子可重現結果
+    dealers = 3,                    // 經銷商數量（ROOT 下一層）
+    depth = 10,                      // 最大深度（含 ROOT 層）
+    // 各層分支數範圍（最小, 最大），從 經銷商 → 高級 → 中級 → 初級 → 一般
+    branching = {
+      dealer: [3, 6],               // 經銷商底下的「高級/中級起點」數
+      senior: [4, 8],               // 高級底下的中級/初級數
+      mid:    [2, 7],               // 中級底下的初級/一般數
+      junior: [1, 6],               // 初級底下的一般數
+      general:[0, 0],               // 一般為葉節點
+    },
+    // 各層績效區間與提貨比（pickup 相對訂貨，確保 ≤ 訂貨）
+    perfByLevel = {
+      ROOT:      { order:[0,0],    pickupRatio:[0,0] },
+      經銷商:     { order:[350,500], pickupRatio:[0.55,0.9] },
+      高級:       { order:[120,220], pickupRatio:[0.4,0.9] },
+      中級:       { order:[60,110],  pickupRatio:[0.45,0.9] },
+      初級:       { order:[40,80],   pickupRatio:[0.3,0.85] },
+      一般:       { order:[18,40],   pickupRatio:[0.5,0.8] },
+    }
+  } = opts;
 
-    const perfProfile = {
-      CEO001:420,R001:180,T001:95,M001:48,M002:26,M008:32,S001:15,S002:18,
-      T002:75,M003:22,M004:38,S003:14,M009:28,T005:60,M011:25,M012:27,
-      R002:130,T003:70,M005:31,M006:14,M013:29,T004:58,M007:18,M010:20,M014:22,
-      R003:90,T006:45,M015:21,M016:23,
+  // --- PRNG: mulberry32 + 簡單 seed hash ---
+  function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296}}
+  const rnd = mulberry32(hashSeed(seed));
+  function hashSeed(s){ if(typeof s==='string'){let h=2166136261>>>0; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i); h=Math.imul(h,16777619)} return h>>>0 } return s>>>0 }
 
-      LEAD200:400,R101:170,T101:92,U001:40,U002:36,U003:30,S004:19,S005:17,
-      T102:55,U004:22,U005:24,T105:88,U011:30,U012:28,U013:26,
-      R102:110,T103:60,U006:26,U007:20,T104:78,U008:28,U009:35,U010:33,
-      R103:85,T106:40,T107:62,U014:29,U015:27
-    };
+  // --- Helpers ---
+  const pick = arr => arr[Math.floor(rnd()*arr.length)];
+  const randInt = (min,max)=>Math.floor(rnd()*(max-min+1))+min;
+  const randFloat = (min,max)=>rnd()*(max-min)+min;
+  const idCounters = new Map();
+  const nextId = prefix => { const n=(idCounters.get(prefix)||0)+1; idCounters.set(prefix,n); return prefix+String(n).padStart(3,'0'); };
+
+  // 中文姓名片段（可擴充）
+  const lastNames = '李王張劉陳楊黃趙周吳徐孫朱馬胡郭林何高梁鄭羅宋謝唐韓曹許鄧蕭馮曾潘蔡蔣袁於杜葉蘇魏呂丁沈姜範盧賈傅鐘白汪錢廖湯文嚴石黎薛金滕康田顧孟方尹江史'.split('');
+  const givenA = '小大中安宥冠柏哲孟家雅怡佩芯孟志庭宸思凱承博俊品語彤婉筑妍筠苑昀偉敏芳麗傑勇華靜亮慧欣濤磊丹凱娜康秀傑浩琳楠剛宏宇寧萍潔鵬燕遠娟毅強暉玲兵紅明偉俊靜慧萍莉文宇琪琳佳偉濤霞燕剛鳳傑勇敏敏靜磊丹凱楠娜宏宇寧萍潔鵬遠娟毅強暉玲兵紅'.split('');
+  const givenB = '明偉豪霖諾瑜欣柔雯瑜庭賢傑瑋均蓉華潔媛婷潔安甄翔宇洋恩熒雲淇偉敏芳麗傑勇華靜亮慧欣濤磊丹凱娜康秀傑浩琳楠剛宏宇寧萍潔鵬燕遠娟毅強暉玲兵紅明偉俊靜慧萍莉文宇琪琳佳偉濤霞燕剛鳳傑勇敏敏靜磊丹凱楠娜宏宇寧萍潔鵬遠娟毅強暉玲兵紅'.split('');
+  function randName(){ return pick(lastNames) + pick(givenA) + pick(givenB); }
+
+  // 層級定義與 id prefix（與你現有圖例相容）
+  const levelOrder = ['ROOT','經銷商','高級','中級','初級','一般'];
+  const prefixByLevel = { ROOT:'ROOT', 經銷商:'CEO', 高級:'R', 中級:'T', 初級:'M', 一般:'U' };
+
+  // 依層給下一層候選與分支範圍鍵
+  function childrenPlan(level){
+    switch(level){
+      case '經銷商': return { next: ['經銷商','高級','中級'], key:'dealer' };
+      case '高級':   return { next: ['高級','中級','初級'], key:'senior' };
+      case '中級':   return { next: ['中級','初級','一般'], key:'mid' };
+      case '初級':   return { next: ['初級','一般'],        key:'junior' };
+      case '一般':   return { next: [],               key:null };
+      default:       return { next: [],               key:null };
+    }
+  }
+
+  // 產生節點
+  function makeNode(level){
+    const id = nextId(prefixByLevel[level] || 'N');
+    const name = randName(); 
+    const node = { id, name, level, metrics: { order:0, pickup:0 }, order:0, pickup:0, 訂貨:0, 提貨:0 };
+    return node;
+  }
+
+  // 產生績效（訂貨、提貨），確保提貨 ≤ 訂貨
+  function drawMetrics(level){
+    const conf = perfByLevel[level] || { order:[0,0], pickupRatio:[0,0] };
+    const order = randInt(conf.order[0], conf.order[1]);
+    const ratio = Math.max(0, Math.min(1, randFloat(conf.pickupRatio[0], conf.pickupRatio[1])));
+    const pickup = Math.min(order, Math.round(order * ratio));
+    return { order, pickup };
+  }
+
+  // 建樹
+  const root = { id:'ROOT', name:'ROOT', level:'ROOT', metrics:{ order:0, pickup:0 }, order:0, pickup:0, 訂貨:0, 提貨:0, children:[] };
+  const perfProfile = { [root.id]: { order:0, pickup:0 } };
+
+  // 先放 dealers
+  for(let i=0;i<dealers;i++){
+    const dealer = makeNode('經銷商');
+    const m = drawMetrics('經銷商');
+    dealer.metrics = m; dealer.order = m.order; dealer.pickup = m.pickup; dealer['訂貨']=m.order; dealer['提貨']=m.pickup;
+    (root.children||(root.children=[])).push(dealer);
+    perfProfile[dealer.id] = { ...m };
+  }
+
+  // BFS 擴展到指定深度
+  const queue = [...root.children.map(n => ({ node:n, depth:2 }))]; // ROOT=1 層，經銷商=2 層
+  while(queue.length){
+    const { node, depth: d } = queue.shift();
+    if(d >= depth) continue;
+
+    const plan = childrenPlan(node.level);
+    if(!plan.key) continue;
+
+    const [minB, maxB] = branching[plan.key] || [0,0];
+    const childCount = randInt(minB, maxB);
+    if(childCount<=0) continue;
+
+    node.children = [];
+    for(let i=0;i<childCount;i++){
+      const nextLevel = pick(plan.next); // 混合下一層級，避免太整齊
+      const child = makeNode(nextLevel);
+      const m = drawMetrics(nextLevel);
+      child.metrics = m; child.order = m.order; child.pickup = m.pickup; child['訂貨']=m.order; child['提貨']=m.pickup;
+      node.children.push(child);
+      perfProfile[child.id] = { ...m };
+      queue.push({ node: child, depth: d+1 });
+    }
+  }
+
+  return { treeData: root, perfProfile, seed };
+}
+
+// ======= 預設生成一棵，讓外部直接使用 =======
+const { treeData, perfProfile, seed } = generateOrgTree({
+  seed: 'demo-2025-08-24',
+  dealers: 3,
+  depth: 10,
+});
+
+// 掛到 window，方便 D3 與 DevTools 使用
+if (typeof window !== 'undefined') {
+  window.treeData = treeData;        // D3 用這個
+  window.perfProfile = perfProfile;  // 若需查單點績效
+  window.generateOrgTree = generateOrgTree;
+}
+
+// =======（可選）重新生成 + 觸發外部 rerender =======
+function regenerateAndRerender(updateFn, userOpts = {}){
+  const result = generateOrgTree(userOpts);
+  if (typeof window !== 'undefined') {
+    window.treeData = result.treeData;
+    window.perfProfile = result.perfProfile;
+  }
+  if (typeof updateFn === 'function') updateFn(result.treeData, result.perfProfile);
+  return result;
+}
 
     const memberJoinedAt = {
       CEO001: '2023-01-01',
@@ -214,9 +259,14 @@
       async getPerf(ids,s,e){
         const d1=new Date(s), d2=new Date(e);
         const months=Math.max(1,(d2.getFullYear()-d1.getFullYear())*12+(d2.getMonth()-d1.getMonth())+1);
-        const map={}; for(const id of ids){ const avg=perfProfile[id]||0;
-          const orders=Math.round(avg*months), pickup=Math.round(orders*0.95);
-          map[id]={orders,pickup,months}; } return map;
+        const map = {};
+        for (const id of ids){
+          const avg = perfProfile[id] || {order:0,pickup:0};
+          const orders=Math.round(avg.order);   // 或 * months，看你要顯示總額還是月均
+          const pickup=Math.round(avg.pickup);
+          map[id] = { orders, pickup, months };
+        }
+        return map;
       }
     };
   </script>
@@ -227,23 +277,35 @@
     let currentStart='2025-01-01', currentEnd='2025-08-15';
     const perfCache=new Map();
 
-    // 尺寸
+    // 自適應尺寸
     const margin = {top:120,right:40,bottom:40,left:40};
-    const width  = 1200 - margin.left - margin.right;
-    const height = 800  - margin.top  - margin.bottom;
 
-    // SVG + 兩層 <g>：zoomLayer 會被縮放/平移，g 是你原本畫圖的座標系(含 margin)
     const svg = d3.select('#chart').append('svg')
-      .attr('viewBox', [0, 0, width + margin.left + margin.right, height + margin.top + margin.bottom].join(' '))
       .attr('preserveAspectRatio','xMidYMid meet');
 
-    const zoomLayer = svg.append('g');  // <— 這層拿來 zoom/pan
-    g = zoomLayer.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+    const zoomLayer = svg.append('g');
+    g = zoomLayer.append('g'); // transform 由 applySize 設
+
+    function applySize(){
+      const el = document.getElementById('chart');
+      const W  = el.clientWidth;
+      const H  = Math.max(500, Math.floor(window.innerHeight * 0.7)); // 70% 視窗高，至少 500
+      svg.attr('viewBox', [0, 0, W, H].join(' '));
+      g.attr('transform', `translate(${margin.left},${margin.top})`);
+    }
+    applySize();
+    window.addEventListener('resize', () => { applySize(); fitToContentTop(); });
+
+    // 取目前 viewBox 尺寸
+    function vbSize(){
+      const [ , , W, H ] = svg.attr('viewBox').split(' ').map(Number);
+      return { W, H };
+    }
 
     //treeLayout = d3.tree().size([width, height]);
     //可調間距
-    const XGAP = 180;   // 同層左右間距
-    const YGAP = 140;   // 父子垂直距離
+    const XGAP = 80;   // 同層左右間距
+    const YGAP = 100;   // 父子垂直距離
     treeLayout = d3.tree()
       .nodeSize([XGAP, YGAP])
       .separation((a,b)=> (a.parent === b.parent ? 1.2 : 1.8));
@@ -287,19 +349,19 @@
     async function init(){
       const data=await getTreeRoot();
       root=d3.hierarchy(data,d=>d.children);
-      root.children?.forEach(collapse); // 兩條主線預設收合
-      root.x0=width/2; root.y0=0;
+      if (root.children) {
+        root.children.forEach(collapse);  // 將經銷商的子孫折疊到 _children
+      }
+
+      const { W } = vbSize();
+      root.x0 = W/2; root.y0 = 0;
       
       await refreshVisiblePerf();
       update(root);
       updateSummary(); 
     }
 
-    const FIT_PADDING_TOP = 30;   // 上方留白（越大越往下）
-    const FIT_PADDING     = 48;   // 左右/下方留白
-    const FIT_BUMP        = 1.6;  // 初始放大一點點（>1 會更近，<1 會更遠） 
-    const ZOOM_MIN        = 0.4;  // 允許最小縮放
-    const ZOOM_MAX        = 2.5;  // 允許最大縮放
+
     
     // 置中（水平）＋貼上方（垂直），自動縮放到看得下
     function fitToContentTop() {
@@ -307,7 +369,6 @@
       if (!node) return;
 
      const b = node.getBBox();
-      // 若還沒有任何節點（或 bbox 無效）就直接回 1:1
       if (!isFinite(b.width) || !isFinite(b.height) || b.width === 0 || b.height === 0) {
         svg.transition().duration(250).call(zoom.transform, d3.zoomIdentity);
         return;
@@ -315,6 +376,12 @@
 
       const [ , , fullW, fullH ] = svg.attr('viewBox').split(' ').map(Number);
 
+      const FIT_PADDING_TOP = 30;   // 上方留白（越大越往下）
+      const FIT_PADDING     = 48;   // 左右/下方留白
+      const FIT_BUMP        = 1.6;  // 初始放大一點點（>1 會更近，<1 會更遠） 
+      const ZOOM_MIN        = 0.4;  // 允許最小縮放
+      const ZOOM_MAX        = 2.5;  // 允許最大縮放
+      
       // 先用真正 fit 算出 baseScale，再乘上 BUMP 讓比例更大些
       const baseScale = Math.min(
         (fullW - FIT_PADDING * 2) / b.width,
@@ -323,11 +390,9 @@
       const k = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, baseScale * FIT_BUMP));
 
       // ★ 用「內容中心對齊視窗中心」的方式算水平位移，避免偏左
-      const contentCx = b.x + b.width / 2;
+      const contentCx = b.x + b.width / 2 + margin.left;
       const tx = (fullW / 2) - (contentCx * k);
-
-      // ★ 垂直靠上（留一些上邊距）
-      const ty = FIT_PADDING_TOP - (b.y * k);
+      const ty = FIT_PADDING_TOP - (b.y + margin.top * k);
 
       svg.transition().duration(500)
          .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
@@ -342,6 +407,27 @@
     d3.select('#btnZoomOut').on('click', ()=> svg.transition().duration(200).call(zoom.scaleBy, 1/1.2));
     d3.select('#btnFit')    .on('click', ()=> fitToContentTop());
 
+    let searchKeyword = ''; // 你現有的搜尋字串
+
+    d3.select('#searchName').on('input', function(){
+      searchKeyword = this.value.trim();
+      update(root);
+    });
+
+    d3.select('#btn-expand').on('click', async () => {
+      if (!root) return;
+      const kw = searchKeyword.trim();
+      if (!kw) return;
+
+      const matches = root.descendants().filter(n => (n.data.name || '').includes(kw));
+      matches.forEach(n => { expandAncestors(n); expandSubtree(n); });
+
+      await refreshVisiblePerf();
+      update(root);
+      fitToContentTop(); 
+      updateSummary();
+    });
+        
     // 畫面更新後(展開/收合/搜尋)也可自動 fit（選擇性）
     function afterUpdateAutoFit(){
       fitToContentTop();
@@ -349,11 +435,23 @@
     
     function collapse(n){ if(n.children){ n._children=n.children; n._children.forEach(collapse); n.children=null; } }
     function isHighPerformer(d){
-      const p = d.data.performance;
-      return p && p.months && (p.orders / p.months) >= HIGH_THRESHOLD;
+      return (d?.data?.order ?? 0) >= HIGH_THRESHOLD;
     }
     function levelFill(l){ if(l==='經銷商')return'#5582b4'; if(l==='高級'||l==='中級'||l==='初級')return'#f7959d'; if(l==='一般')return'#deabe9'; return'#ccc'; }
     function levelStroke(l){ if(l==='經銷商')return'#3f668e'; if(l==='高級'||l==='中級'||l==='初級')return'#d86a74'; if(l==='一般')return'#b687c8'; return'#999'; }
+
+    // 依 D3 常見折疊模式：children 可見，_children 折疊
+    function expandNode(d){
+      if (d._children){ d.children = d._children; d._children = null; }
+    }
+    function expandAncestors(d){
+      let p = d;
+      while (p){ expandNode(p); p = p.parent; }
+    }
+    function expandSubtree(d){
+      expandNode(d);
+      if (d.children) d.children.forEach(expandSubtree);
+    }
 
     // 只收集目前可見節點（展開中的）
     function collectVisible(n,out){ if(n.depth>0) out.push(n); if(n.children) n.children.forEach(c=>collectVisible(c,out)); }
@@ -417,25 +515,17 @@
       enter.append('text').attr('class','name-text').attr('dy','-2.5em').text(d=>d.data.name);
       enter.append('text').attr('class','level-text').attr('dy','-1.2em').text(d=>d.data.level||'');
      
-      // 建立「訂貨」文字  //
+      // 建立「訂貨」文字 //
       enter.append('text')
         .attr('class', 'orders-text')
         .attr('dy', '1.8em')
-        .text(d => {
-          const p = d.data.performance || {orders:0, months:1};
-          const avg = p.orders / (p.months || 1);
-          return `訂：${Math.round(p.orders)}萬`;  // ★
-        });
-     
-      // 建立「提貨」文字  //
+        .text(d => `訂貨：${Math.round(d.data.order || 0)}萬`);
+
+      // 建立「提貨」文字 //
       enter.append('text')
         .attr('class', 'pickup-text')
         .attr('dy', '3.0em')
-        .text(d => {
-          const p = d.data.performance || {pickup:0, months:1};
-          const avg = p.pickup / (p.months || 1);
-          return `提：${Math.round(p.pickup)}萬 `;
-      });
+        .text(d => `提貨：${Math.round(d.data.pickup || 0)}萬`);
 
       const merged=enter.merge(node);
       merged.transition().duration(dur).attr('transform', d=>`translate(${d.x},${d.y})`);
@@ -445,23 +535,15 @@
         .style('stroke-width', d=>isHighPerformer(d)?3:2)
         .style('stroke', d=>isHighPerformer(d)?'#fff600':levelStroke(d.data.level));
   
-      // 更新「訂貨」  //
+      // 更新「訂貨」 //
       merged.select('.orders-text')
-        .text(d => {
-          const p = d.data.performance || {orders:0, months:1};
-          const avg = p.orders / (p.months || 1);
-          return `訂貨：${Math.round(p.orders)}萬`;  // ★
-        });
-      
-      // 更新「提貨」  //
+       .text(d => `訂貨：${Math.round(d.data.order || 0)}萬`);
+
+      // 更新「提貨」 //
       merged.select('.pickup-text')
-        .text(d => {
-          const p = d.data.performance || {pickup:0, months:1};
-          const avg = p.pickup / (p.months || 1);
-          return `提貨：${Math.round(p.pickup)}萬`;  // ★
-        });
+        .text(d => `提貨：${Math.round(d.data.pickup || 0)}萬`);
       
-      merged.style('opacity', d=> shouldDim(d)? .5 : 1);
+      merged.style('opacity', d=> shouldDim(d)? .3 : 1);
 
       node.exit().transition().duration(400)
         .attr('transform', d=>`translate(${source.x||0},${source.y||0})`).remove();
@@ -500,13 +582,20 @@
       if (highlightIds) nodes = nodes.filter(d => !shouldDim(d));
 
       let totalOrders=0,totalPickup=0,totalMembers=0,high=0;
+      
       for(const n of nodes){
         if(n.depth===0) continue;
         totalMembers++;
-        const p=n.data.performance||{orders:0,pickup:0,months:1};
-        totalOrders+=p.orders; totalPickup+=p.pickup;
-        if ((p.orders / p.months) >= HIGH_THRESHOLD) high++;
+        
+        const order  = n.data.order  ?? n.data.metrics?.order  ?? 0;
+        const pickup = n.data.pickup ?? n.data.metrics?.pickup ?? 0;
+
+        totalOrders += order;
+        totalPickup += pickup;
+
+        if (order >= HIGH_THRESHOLD) high++;   // HIGH_THRESHOLD 單位：萬
       }
+      
       document.getElementById('totalOrders').textContent=totalOrders.toLocaleString();
       document.getElementById('totalPickup').textContent=totalPickup.toLocaleString();
       document.getElementById('totalMembers').textContent=totalMembers;
