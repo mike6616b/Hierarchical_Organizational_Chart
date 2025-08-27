@@ -209,12 +209,6 @@ function isHigh(d){ return (d?.data?.order ?? 0) >= HIGH_THRESHOLD; }
 /* =======================================================================================
    3) PixiJS / Viewport 初始化  [PIX I]
    ======================================================================================= */
-
-  // 把各種 UMD 變體整理成同一個全域 __Viewport__
-  window.__Viewport__ =
-    (window.pixi_viewport && (window.pixi_viewport.Viewport || window.pixi_viewport.default || window.pixi_viewport)) ||
-    (window.PIXI && window.PIXI.viewport && (window.PIXI.viewport.Viewport || window.PIXI.viewport.default)) ||
-    window.Viewport;
   
 (async () => {
 const chartEl = document.getElementById('chart');
@@ -231,13 +225,24 @@ if (PIXI.Application && PIXI.Application.prototype && 'init' in PIXI.Application
   chartEl.appendChild(app.view);
 }
 
-// 事件來源：v7 是 renderer.events；v6 是 renderer.plugins.interaction
 // 事件來源（v7 / v6 相容）
 const events = app.renderer.events || (app.renderer.plugins && app.renderer.plugins.interaction);
 
-// 直接用正規化後的建構子
-const ViewportCtor = window.__Viewport__;
-if (!ViewportCtor) throw new Error('pixi-viewport UMD 未載入成功');
+// 先嘗試從各種 UMD 全域拿建構子
+let ViewportCtor =
+  (window.pixi_viewport && (window.pixi_viewport.Viewport || window.pixi_viewport.default || window.pixi_viewport)) ||
+  window.Viewport ||
+  (window.PIXI && window.PIXI.viewport && (window.PIXI.viewport.Viewport || window.PIXI.viewport.default));
+
+// 若仍拿不到，改用 ESM 動態載入（最穩）
+if (!ViewportCtor) {
+  const mod = await import('https://esm.sh/pixi-viewport@5?bundle');
+  ViewportCtor = mod.Viewport || mod.default;
+}
+if (!ViewportCtor) {
+  console.error('pixi-viewport 載入失敗');
+  return;
+}
 
 const viewport = new ViewportCtor({
   screenWidth: app.renderer.width,
