@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>組織架構圖 (PixiJS/WebGL)</title>
+  <title>組織架構圖</title>
 
   <!-- d3 只保留用來計算 tree 版位 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
@@ -63,7 +63,7 @@
 
     <div class="chart-container">
       <div class="instructions">
-        使用日期區間與搜尋人名　|　等級配色：
+        使用日期區間與搜尋人名
         <div>
           <span class="dot dot-dealer"></span> 經銷商　
           <span class="dot dot-level"></span> 高/中/初級　
@@ -252,6 +252,7 @@ async function init(){
 
   update();       // 計算版位 + Pixi 繪圖
   updateSummary();
+  fitToContent();
 
   // 初始 fit 到視窗並稍微上移
   viewport.fit(true);
@@ -297,6 +298,7 @@ function ensureNode(d){
     toggle(d);
     update();        // 版位 + 重繪
     updateSummary();
+    fitToContent();
   });
 
   container.addChild(circle, name, level, tOrder, tPickup);
@@ -314,6 +316,52 @@ function centerOnNode(d, topPad=80){
   viewport.animate({ time: 500, ease:'easeInOutSine', position: new PIXI.Point(d.x, d.y), scale: new PIXI.Point(k,k) });
   viewport.moveCenter(d.x, d.y);
   viewport.move(0, -(app.renderer.height/2 - topPad));
+}
+
+// 讓目前「可見節點」自動縮放並置中，且往上貼一點
+function fitToContent(padTop = 80, padLR = 40, bump = 1.15) {
+  const nodes = getVisibleNodes();
+  if (!nodes.length) {
+    viewport.fit(true);
+    viewport.move(0, -padTop);
+    return;
+  }
+
+  // 計算可見節點的包圍盒
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const d of nodes) {
+    if (d.x < minX) minX = d.x;
+    if (d.x > maxX) maxX = d.x;
+    if (d.y < minY) minY = d.y;
+    if (d.y > maxY) maxY = d.y;
+  }
+  const w = Math.max(1, maxX - minX);
+  const h = Math.max(1, maxY - minY);
+
+  const sw = app.renderer.width;
+  const sh = app.renderer.height;
+
+  // 計算縮放，保留左右/上邊距
+  const kBase = Math.min(
+    (sw - padLR * 2) / w,
+    (sh - (padTop + padLR)) / h
+  );
+  const k = Math.max(0.2, Math.min(3, kBase * bump));
+
+  // 內容中心
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+
+  // 動畫帶入位置與縮放，之後再往上推 padTop
+  viewport.animate({
+    time: 400,
+    position: new PIXI.Point(cx, cy),
+    scale: new PIXI.Point(k, k),
+    ease: 'easeInOutSine'
+  }).once('moved', () => {
+    viewport.moveCenter(cx, cy);
+    viewport.move(0, -(sh / 2 - padTop));
+  });
 }
 
 // 版位計算 + Pixi 重繪（取代原 SVG 的 update()）
@@ -394,6 +442,7 @@ function expandSearchTargets(){
   matches.forEach(n => { expandAncestors(n); expandSubtree(n); });
   update();
   updateSummary();
+  fitToContent();
 }
 
 // 定位：把目前搜尋命中的第一個節點移到中間偏上
@@ -441,10 +490,16 @@ document.getElementById('btnApply').addEventListener('click', ()=>{
   // TODO: 接後端時，依日期重新拉績效後呼叫 update()/updateSummary()
   update(); updateSummary();
 });
-document.getElementById('btnSearch').addEventListener('click', applySearch);
+document.getElementById('btnSearch').addEventListener('click', ()=>{
+  applySearch();
+  fitToContent();  // << 新增
+});
 document.getElementById('btnClear').addEventListener('click', ()=>{
   document.getElementById('searchName').value='';
-  searchKeyword=''; highlightIds=null; update(); updateSummary();
+  searchKeyword=''; highlightIds=null; 
+  update(); 
+  updateSummary();
+  fitToContent();
 });
 document.getElementById('btnExpand').addEventListener('click', expandSearchTargets);
 document.getElementById('btnLocate').addEventListener('click', locateFirstMatch);
@@ -457,10 +512,7 @@ document.getElementById('searchName').addEventListener('input', ()=>{
 // Zoom 控制
 document.getElementById('btnZoomIn').addEventListener('click', ()=> viewport.setZoom(viewport.scale.x * 1.2, true));
 document.getElementById('btnZoomOut').addEventListener('click',()=> viewport.setZoom(viewport.scale.x / 1.2, true));
-document.getElementById('btnFit').addEventListener('click', ()=>{
-  viewport.fit(true);
-  viewport.move(0,-80);
-});
+document.getElementById('btnFit').addEventListener('click', ()=> fitToContent());
 
 /* =======================================================================================
    9) 之後的效能升級建議（已標註 TODO 的位置）
