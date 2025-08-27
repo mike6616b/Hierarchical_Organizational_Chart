@@ -212,31 +212,41 @@ function isHigh(d){ return (d?.data?.order ?? 0) >= HIGH_THRESHOLD; }
 
 (async () => {
 const chartEl = document.getElementById('chart');
-const app = new PIXI.Application();
-await app.init({
-  resizeTo: chartEl,
-  antialias: true,
-  backgroundAlpha: 0
-});
-chartEl.appendChild(app.canvas);
+
+let app;
+// v7 走這裡：Application.prototype.init 存在
+if (PIXI.Application && PIXI.Application.prototype && 'init' in PIXI.Application.prototype) {
+  app = new PIXI.Application();
+  await app.init({ resizeTo: chartEl, antialias: true, backgroundAlpha: 0 });
+  chartEl.appendChild(app.canvas);
+} else {
+  // v6 走這裡
+  app = new PIXI.Application({ resizeTo: chartEl, antialias: true, backgroundAlpha: 0 });
+  chartEl.appendChild(app.view);
+}
+
+// 事件來源：v7 是 renderer.events；v6 是 renderer.plugins.interaction
+const events = app.renderer.events || (app.renderer.plugins && app.renderer.plugins.interaction);
+
 const viewport = new pixi_viewport.Viewport({
   screenWidth: app.renderer.width,
   screenHeight: app.renderer.height,
   worldWidth: 8000,
   worldHeight: 8000,
-  events: app.renderer.events
+  events,                           // <— 用相容事件物件
+  ticker: app.ticker                // 建議加上，讓 viewport 的動畫/慣性正常
 });
 app.stage.addChild(viewport);
 
 // 啟用手勢
 viewport.drag().pinch().wheel().decelerate();
 
-// 兩層容器：連線在下、節點在上（z-order）
+// 兩層容器：連線在下、節點在上
 const linkLayer = new PIXI.Container();
 const nodeLayer = new PIXI.Container();
 viewport.addChild(linkLayer, nodeLayer);
 
-// 快取（避免重建）：id -> PIXI 元件
+// 快取
 const linkById = new Map(); // id -> Graphics
 const nodeById = new Map(); // id -> {container, circle, name, level, tOrder, tPickup}
 
