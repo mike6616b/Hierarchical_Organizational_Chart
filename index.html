@@ -210,13 +210,14 @@ function isHigh(d){ return (d?.data?.order ?? 0) >= HIGH_THRESHOLD; }
    3) PixiJS / Viewport 初始化  [PIX I]
    ======================================================================================= */
 
-const app = new PIXI.Application({
-  resizeTo: document.getElementById('chart'),
+const chartEl = document.getElementById('chart');
+const app = new PIXI.Application();
+await app.init({
+  resizeTo: chartEl,
   antialias: true,
   backgroundAlpha: 0
 });
-document.getElementById('chart').appendChild(app.view);
-
+chartEl.appendChild(app.canvas);
 const viewport = new pixi_viewport.Viewport({
   screenWidth: app.renderer.width,
   screenHeight: app.renderer.height,
