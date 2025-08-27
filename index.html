@@ -9,7 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <!-- PixiJS + Viewport for WebGL rendering & pan/zoom -->
   <script src="https://unpkg.com/pixi.js@7/dist/pixi.min.js"></script>
-  <script src="https://unpkg.com/pixi-viewport@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi-viewport@5.0.3/dist/umd/pixi-viewport.min.js"></script>
 
   <style>
     :root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; }
@@ -226,15 +226,24 @@ if (PIXI.Application && PIXI.Application.prototype && 'init' in PIXI.Application
 }
 
 // 事件來源：v7 是 renderer.events；v6 是 renderer.plugins.interaction
+// 事件來源（v7 / v6 相容）
 const events = app.renderer.events || (app.renderer.plugins && app.renderer.plugins.interaction);
 
-const viewport = new pixi_viewport.Viewport({
+// 取 Viewport 建構子（不同 UMD 可能掛在不同全域）
+const ViewportCtor =
+  (window.pixi_viewport && window.pixi_viewport.Viewport) ||
+  window.Viewport ||
+  (window.PIXI && window.PIXI.viewport && window.PIXI.viewport.Viewport);
+
+if (!ViewportCtor) throw new Error('pixi-viewport UMD 未載入成功');
+
+const viewport = new ViewportCtor({
   screenWidth: app.renderer.width,
   screenHeight: app.renderer.height,
   worldWidth: 8000,
   worldHeight: 8000,
-  events,                           // <— 用相容事件物件
-  ticker: app.ticker                // 建議加上，讓 viewport 的動畫/慣性正常
+  events,
+  ticker: app.ticker
 });
 app.stage.addChild(viewport);
 
