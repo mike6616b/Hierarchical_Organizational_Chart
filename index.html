@@ -210,6 +210,7 @@ function isHigh(d){ return (d?.data?.order ?? 0) >= HIGH_THRESHOLD; }
    3) PixiJS / Viewport 初始化  [PIX I]
    ======================================================================================= */
 
+(async () => {
 const chartEl = document.getElementById('chart');
 const app = new PIXI.Application();
 await app.init({
@@ -523,6 +524,8 @@ document.getElementById('btnFit').addEventListener('click', ()=> fitToContent())
    - 文字批量：名稱/數字可改 BitmapFont（Pixi 支援），大量節點時更省。
    - 線段圖層：大量邊可改 mesh 或用細分度更低的曲線/直線。
    ======================================================================================= */
+})();
+  
 </script>
 </body>
 </html>
