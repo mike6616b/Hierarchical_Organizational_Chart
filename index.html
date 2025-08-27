@@ -210,6 +210,12 @@ function isHigh(d){ return (d?.data?.order ?? 0) >= HIGH_THRESHOLD; }
    3) PixiJS / Viewport 初始化  [PIX I]
    ======================================================================================= */
 
+  // 把各種 UMD 變體整理成同一個全域 __Viewport__
+  window.__Viewport__ =
+    (window.pixi_viewport && (window.pixi_viewport.Viewport || window.pixi_viewport.default || window.pixi_viewport)) ||
+    (window.PIXI && window.PIXI.viewport && (window.PIXI.viewport.Viewport || window.PIXI.viewport.default)) ||
+    window.Viewport;
+  
 (async () => {
 const chartEl = document.getElementById('chart');
 
@@ -229,20 +235,9 @@ if (PIXI.Application && PIXI.Application.prototype && 'init' in PIXI.Application
 // 事件來源（v7 / v6 相容）
 const events = app.renderer.events || (app.renderer.plugins && app.renderer.plugins.interaction);
 
-// 取 Viewport 建構子（不同 UMD 可能掛在不同全域）
-const ViewportCtor =
-  (window.pixi_viewport && window.pixi_viewport.Viewport) ||
-  (window.PIXI && window.PIXI.viewport && window.PIXI.viewport.Viewport) ||
-  (window.PIXI && window.PIXI.extras && window.PIXI.extras.Viewport);
-
-if (!ViewportCtor) {
-  console.log('globals:', {
-    pixi_viewport: !!window.pixi_viewport,
-    PIXI_viewport: !!(window.PIXI && window.PIXI.viewport),
-    PIXI_extras:   !!(window.PIXI && window.PIXI.extras)
-  });
-  throw new Error('pixi-viewport UMD 未載入成功');
-}
+// 直接用正規化後的建構子
+const ViewportCtor = window.__Viewport__;
+if (!ViewportCtor) throw new Error('pixi-viewport UMD 未載入成功');
 
 const viewport = new ViewportCtor({
   screenWidth: app.renderer.width,
