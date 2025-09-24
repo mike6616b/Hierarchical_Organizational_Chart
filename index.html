@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>組織架構圖</title>
 
-  <!-- d3 只保留用來計算 tree 版位 -->
+  <!-- 使用穩定版本的CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-  <!-- PixiJS + Viewport for WebGL rendering & pan/zoom -->
-  <script src="https://unpkg.com/pixi.js@7/dist/pixi.min.js"></script>
-  <script src="https://unpkg.com/pixi-viewport@5.0.3/dist/umd/pixi-viewport.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.10/pixi.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi-viewport/4.36.1/viewport.min.js"></script>
 
   <style>
     :root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; }
@@ -31,17 +30,15 @@
     .stat-value{font-size:22px;font-weight:800;display:block}
     .stat-label{font-size:12px;opacity:.9}
 
-    /* chart 容器：Pixi 的 <canvas> 會塞進這裡 */
     #chart{ position:relative; width:100%; height:70vh; }
     #zoomControls{ position:absolute; top:8px; right:8px; display:flex; gap:6px; z-index:3; }
-    #zoomControls button{ padding:4px 8px; border-radius:6px; font-size:12px; }
+    #zoomControls button{ padding:4px 8px; border-radius:6px; font-size:12px; background:rgba(255,255,255,0.9); border:1px solid #ccc; cursor:pointer; }
 
-    /* 圖例點點 */
     .dot{ display:inline-block; width:12px; height:12px; border-radius:50%; border:2px solid; vertical-align:middle }
-    .dot-dealer{ background:#5582b4; border-color:#3f668e }   /* 經銷商 */
-    .dot-level{  background:#f7959d; border-color:#d86a74 }   /* 高/中/初級 */
-    .dot-normal{ background:#deabe9; border-color:#b687c8 }   /* 一般 */
-    .dot-high{   background:#ffffff; border-color:#fff600 }   /* 高業績 */
+    .dot-dealer{ background:#5582b4; border-color:#3f668e }
+    .dot-level{  background:#f7959d; border-color:#d86a74 }
+    .dot-normal{ background:#deabe9; border-color:#b687c8 }
+    .dot-high{   background:#ffffff; border-color:#fff600 }
   </style>
 </head>
 <body>
@@ -54,10 +51,10 @@
         <input type="date" id="endDate" value="2025-08-15" />
         <button id="btnApply">更新數據</button>
         <input type="text" id="searchName" placeholder="搜尋人名" />
-        <button id="btnSearch"  style="background:#3b82f6">搜尋</button>
-        <button id="btnClear"   style="background:#f51111">清除</button>
-        <button id="btnExpand"  style="background:#6b7280">展開</button>
-        <button id="btnLocate"  style="background:#0ea5e9">定位</button> <!-- 新增：將搜尋對象置中偏上 -->
+        <button id="btnSearch" style="background:#3b82f6">搜尋</button>
+        <button id="btnClear" style="background:#f51111">清除</button>
+        <button id="btnExpand" style="background:#6b7280">展開</button>
+        <button id="btnLocate" style="background:#0ea5e9">定位</button>
       </div>
     </div>
 
@@ -90,9 +87,9 @@
   </div>
 
 <script>
-/* =======================================================================================
-   1) 資料層：隨機產生組織 + 直接在節點寫入 order/pickup（避免 NaN）
-   ======================================================================================= */
+/* ======================================================================================= */
+// 1) 資料產生 - 修復NaN問題
+/* ======================================================================================= */
 
 function generateOrgTree(opts = {}) {
   const {
@@ -155,7 +152,6 @@ function generateOrgTree(opts = {}) {
   const root = { id:'ROOT', name:'ROOT', level:'ROOT', order:0, pickup:0, children:[] };
   for(let i=0;i<dealers;i++) root.children.push(makeNode('經銷商'));
 
-  // BFS 擴展
   const q = root.children.map(n=>({node:n, depth:2}));
   while(q.length){
     const {node, depth:d} = q.shift();
@@ -176,27 +172,23 @@ function generateOrgTree(opts = {}) {
   return { treeData:root };
 }
 
-/* =======================================================================================
-   2) 共用工具/狀態
-   ======================================================================================= */
+/* ======================================================================================= */
+// 2) 共用狀態
+/* ======================================================================================= */
 
-const HIGH_THRESHOLD = 106; // 高業績門檻（以「萬」為單位）
-
+const HIGH_THRESHOLD = 106;
 const { treeData } = generateOrgTree({ seed:'pixi-demo' });
-let root;                    // d3.hierarchy
-let treeLayout;              // d3.tree
-let highlightIds = null;     // Set<string> | null
-let searchKeyword = '';      // 目前搜尋字串
+let root;
+let treeLayout;
+let highlightIds = null;
+let searchKeyword = '';
 
-// 版位間距
 const XGAP = 90;
 const YGAP = 110;
 
-// 只收集目前可見節點（children 展開的）
 function collectVisible(n,out){ if(n.depth>0) out.push(n); if(n.children) n.children.forEach(c=>collectVisible(c,out)); }
 function getVisibleNodes(){ const arr=[]; collectVisible(root,arr); return arr; }
 
-// 折疊/展開
 function collapse(n){ if(n.children){ n._children = n.children; n._children.forEach(collapse); n.children = null; } }
 function toggle(d){ if(d.children){ d._children = d.children; d._children.forEach(collapse); d.children = null; } else { d.children = d._children; d._children = null; } }
 function expandNode(d){ if(d._children){ d.children=d._children; d._children=null; } }
@@ -206,97 +198,103 @@ function expandSubtree(d){ expandNode(d); if(d.children) d.children.forEach(expa
 function shouldDim(d){ if(!highlightIds) return false; return !highlightIds.has(d.data.id); }
 function isHigh(d){ return (d?.data?.order ?? 0) >= HIGH_THRESHOLD; }
 
-/* =======================================================================================
-   3) PixiJS / Viewport 初始化  [PIX I]
-   ======================================================================================= */
-  
-(async () => {
+/* ======================================================================================= */
+// 3) PixiJS 初始化 - 修復版本兼容性
+/* ======================================================================================= */
+
 const chartEl = document.getElementById('chart');
 
-let app;
-// v7 走這裡：Application.prototype.init 存在
-if (PIXI.Application && PIXI.Application.prototype && 'init' in PIXI.Application.prototype) {
-  app = new PIXI.Application();
-  await app.init({ resizeTo: chartEl, antialias: true, backgroundAlpha: 0 });
-  chartEl.appendChild(app.canvas);
-} else {
-  // v6 走這裡
-  app = new PIXI.Application({ resizeTo: chartEl, antialias: true, backgroundAlpha: 0 });
-  chartEl.appendChild(app.view);
-}
-
-// 事件來源（v7 / v6 相容）
-const events = app.renderer.events || (app.renderer.plugins && app.renderer.plugins.interaction);
-
-// 先嘗試從各種 UMD 全域拿建構子
-let ViewportCtor =
-  (window.pixi_viewport && (window.pixi_viewport.Viewport || window.pixi_viewport.default || window.pixi_viewport)) ||
-  window.Viewport ||
-  (window.PIXI && window.PIXI.viewport && (window.PIXI.viewport.Viewport || window.PIXI.viewport.default));
-
-// 若仍拿不到，改用 ESM 動態載入（最穩）
-if (!ViewportCtor) {
-  const mod = await import('https://esm.sh/pixi-viewport@5?bundle');
-  ViewportCtor = mod.Viewport || mod.default;
-}
-if (!ViewportCtor) {
-  console.error('pixi-viewport 載入失敗');
-  return;
-}
-
-const viewport = new ViewportCtor({
-  screenWidth: app.renderer.width,
-  screenHeight: app.renderer.height,
-  worldWidth: 8000,
-  worldHeight: 8000,
-  events,
-  ticker: app.ticker
+// 使用PIXI v6的初始化方式
+const app = new PIXI.Application({
+  resizeTo: chartEl,
+  antialias: true,
+  backgroundColor: 0xffffff,
+  transparent: true
 });
+chartEl.appendChild(app.view);
+
+// 使用PIXI.extras.Viewport (v4版本) 或確保正確載入
+let viewport;
+if (window.PIXI && window.PIXI.extras && window.PIXI.extras.Viewport) {
+  viewport = new PIXI.extras.Viewport({
+    screenWidth: app.renderer.width,
+    screenHeight: app.renderer.height,
+    worldWidth: 8000,
+    worldHeight: 8000,
+    interaction: app.renderer.plugins.interaction
+  });
+} else if (window.Viewport) {
+  viewport = new window.Viewport({
+    screenWidth: app.renderer.width,
+    screenHeight: app.renderer.height,
+    worldWidth: 8000,
+    worldHeight: 8000,
+    interaction: app.renderer.plugins.interaction
+  });
+} else {
+  // 降級處理：使用基本Container
+  viewport = new PIXI.Container();
+  viewport.drag = () => viewport;
+  viewport.pinch = () => viewport;
+  viewport.wheel = () => viewport;
+  viewport.decelerate = () => viewport;
+  viewport.fit = () => {};
+  viewport.setZoom = (scale) => { viewport.scale.set(scale); };
+  viewport.moveCenter = (x, y) => { viewport.position.set(-x + app.renderer.width/2, -y + app.renderer.height/2); };
+  viewport.animate = () => ({ once: () => {} });
+}
+
 app.stage.addChild(viewport);
 
-// 啟用手勢
-viewport.drag().pinch().wheel().decelerate();
+// 啟用手勢（如果支援）
+if (viewport.drag && typeof viewport.drag === 'function') {
+  viewport.drag().pinch().wheel().decelerate();
+}
 
-// 兩層容器：連線在下、節點在上
 const linkLayer = new PIXI.Container();
 const nodeLayer = new PIXI.Container();
 viewport.addChild(linkLayer, nodeLayer);
 
-// 快取
-const linkById = new Map(); // id -> Graphics
-const nodeById = new Map(); // id -> {container, circle, name, level, tOrder, tPickup}
+const linkById = new Map();
+const nodeById = new Map();
 
-/* =======================================================================================
-   4) d3 tree 版位 + 首次初始化  [D3 Layout]
-   ======================================================================================= */
+/* ======================================================================================= */
+// 4) D3樹狀版位計算
+/* ======================================================================================= */
 
 treeLayout = d3.tree().nodeSize([XGAP, YGAP]).separation((a,b)=> (a.parent===b.parent ? 1.2 : 1.8));
 
-async function init(){
+function init(){
   root = d3.hierarchy(treeData, d=>d.children);
-
-  // 預設：只顯示第一層（經銷商）；經銷商以下全部折疊
   if (root.children) root.children.forEach(collapse);
-
-  update();       // 計算版位 + Pixi 繪圖
+  update();
   updateSummary();
   fitToContent();
-
-  // 初始 fit 到視窗並稍微上移
-  viewport.fit(true);
-  viewport.move(0, -80);
+  if (viewport.fit && typeof viewport.fit === 'function') {
+    viewport.fit(true);
+  }
+  if (viewport.move && typeof viewport.move === 'function') {
+    viewport.move(0, -80);
+  }
 }
-init();
 
-/* =======================================================================================
-   5) 繪圖：用 Pixi 取代原 SVG 的 update() 畫圖段
-   ======================================================================================= */
+/* ======================================================================================= */
+// 5) PixiJS 繪圖
+/* ======================================================================================= */
 
-// 顏色對應
-function levelFill(l){ if(l==='經銷商')return 0x5582b4; if(l==='高級'||l==='中級'||l==='初級')return 0xf7959d; if(l==='一般')return 0xdeabe9; return 0xcccccc; }
-function levelStroke(l){ if(l==='經銷商')return 0x3f668e; if(l==='高級'||l==='中級'||l==='初級')return 0xd86a74; if(l==='一般')return 0xb687c8; return 0x999999; }
+function levelFill(l){ 
+  if(l==='經銷商')return 0x5582b4; 
+  if(l==='高級'||l==='中級'||l==='初級')return 0xf7959d; 
+  if(l==='一般')return 0xdeabe9; 
+  return 0xcccccc; 
+}
+function levelStroke(l){ 
+  if(l==='經銷商')return 0x3f668e; 
+  if(l==='高級'||l==='中級'||l==='初級')return 0xd86a74; 
+  if(l==='一般')return 0xb687c8; 
+  return 0x999999; 
+}
 
-// 畫貝茲曲線（等同原 SVG path）
 function drawLink(id, x1,y1, x2,y2, dim){
   let g = linkById.get(id);
   if(!g){ g = new PIXI.Graphics(); linkById.set(id,g); linkLayer.addChild(g); }
@@ -316,15 +314,16 @@ function ensureNode(d){
   const level  = new PIXI.Text('', {fontSize:11, fill:0x7f8c8d});
   const tOrder = new PIXI.Text('', {fontSize:10, fill:0x27ae60, fontWeight:'bold'});
   const tPickup= new PIXI.Text('', {fontSize:10, fill:0x8e44ad, fontWeight:'bold'});
+  
   name.anchor.set(0.5); level.anchor.set(0.5); tOrder.anchor.set(0.5); tPickup.anchor.set(0.5);
   name.y=-28; level.y=-14; tOrder.y=18; tPickup.y=32;
 
   const container = new PIXI.Container();
   container.interactive = true;
-  container.cursor = 'pointer';
-  container.on('pointertap', async ()=>{
+  container.buttonMode = true; // v6 compatibility
+  container.on('pointerdown', ()=>{
     toggle(d);
-    update();        // 版位 + 重繪
+    update();
     updateSummary();
     fitToContent();
   });
@@ -337,25 +336,30 @@ function ensureNode(d){
   return e;
 }
 
-// 中心定位：把節點移到畫面中間偏上
 function centerOnNode(d, topPad=80){
-  if(!d) return;
-  const k = viewport.scale.x; // 保持當前縮放
-  viewport.animate({ time: 500, ease:'easeInOutSine', position: new PIXI.Point(d.x, d.y), scale: new PIXI.Point(k,k) });
+  if(!d || !viewport.moveCenter) return;
+  const k = viewport.scale ? viewport.scale.x : 1;
+  if (viewport.animate && typeof viewport.animate === 'function') {
+    viewport.animate({ time: 500, ease:'easeInOutSine', position: new PIXI.Point(d.x, d.y), scale: new PIXI.Point(k,k) });
+  }
   viewport.moveCenter(d.x, d.y);
-  viewport.move(0, -(app.renderer.height/2 - topPad));
+  if (viewport.move && typeof viewport.move === 'function') {
+    viewport.move(0, -(app.renderer.height/2 - topPad));
+  }
 }
 
-// 讓目前「可見節點」自動縮放並置中，且往上貼一點
 function fitToContent(padTop = 80, padLR = 40, bump = 1.15) {
   const nodes = getVisibleNodes();
   if (!nodes.length) {
-    viewport.fit(true);
-    viewport.move(0, -padTop);
+    if (viewport.fit && typeof viewport.fit === 'function') {
+      viewport.fit(true);
+    }
+    if (viewport.move && typeof viewport.move === 'function') {
+      viewport.move(0, -padTop);
+    }
     return;
   }
 
-  // 計算可見節點的包圍盒
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const d of nodes) {
     if (d.x < minX) minX = d.x;
@@ -369,36 +373,41 @@ function fitToContent(padTop = 80, padLR = 40, bump = 1.15) {
   const sw = app.renderer.width;
   const sh = app.renderer.height;
 
-  // 計算縮放，保留左右/上邊距
   const kBase = Math.min(
     (sw - padLR * 2) / w,
     (sh - (padTop + padLR)) / h
   );
   const k = Math.max(0.2, Math.min(3, kBase * bump));
 
-  // 內容中心
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
 
-  // 動畫帶入位置與縮放，之後再往上推 padTop
-  viewport.animate({
-    time: 400,
-    position: new PIXI.Point(cx, cy),
-    scale: new PIXI.Point(k, k),
-    ease: 'easeInOutSine'
-  }).once('moved', () => {
-    viewport.moveCenter(cx, cy);
-    viewport.move(0, -(sh / 2 - padTop));
-  });
+  if (viewport.animate && typeof viewport.animate === 'function') {
+    viewport.animate({
+      time: 400,
+      position: new PIXI.Point(cx, cy),
+      scale: new PIXI.Point(k, k),
+      ease: 'easeInOutSine'
+    }).once('moved', () => {
+      if (viewport.moveCenter && typeof viewport.moveCenter === 'function') {
+        viewport.moveCenter(cx, cy);
+      }
+      if (viewport.move && typeof viewport.move === 'function') {
+        viewport.move(0, -(sh / 2 - padTop));
+      }
+    });
+  } else {
+    // 簡單處理
+    viewport.scale.set(k);
+    viewport.position.set(-cx*k + sw/2, -cy*k + sh/2 - padTop);
+  }
 }
 
-// 版位計算 + Pixi 重繪（取代原 SVG 的 update()）
 function update(){
   treeLayout(root);
   const nodes = getVisibleNodes();
   const links = nodes.filter(d=> d.parent && d.parent.depth>0);
 
-  // 清理：標記活躍 id，順便移除不再可見的 Pixi 物件（簡易 GC）
   const liveNodeIds = new Set(nodes.map(d=>d.data.id));
   const liveLinkIds = new Set(links.map(d=>d.data.id));
 
@@ -409,13 +418,11 @@ function update(){
     if(!liveNodeIds.has(id)){ e.container.destroy({children:true}); nodeById.delete(id); }
   }
 
-  // 畫連線
   for(const d of links){
     const dim = shouldDim(d) || shouldDim(d.parent);
     drawLink(d.data.id, d.parent.x, d.parent.y, d.x, d.y, dim);
   }
 
-  // 畫節點
   for(const d of nodes){
     const dim = shouldDim(d);
     const e = ensureNode(d);
@@ -435,17 +442,15 @@ function update(){
   }
 }
 
-/* =======================================================================================
-   6) 搜尋 / 清除 / 展開 / 定位
-   ======================================================================================= */
+/* ======================================================================================= */
+// 6) 搜尋功能
+/* ======================================================================================= */
 
-// 搜尋：命中節點 + 其所有祖先/子孫保持高亮，其餘淡化
 function applySearch(){
   const q = (document.getElementById('searchName').value||'').trim();
   searchKeyword = q;
   if(!q){ highlightIds=null; update(); updateSummary(); return; }
 
-  // 建索引（含未展開子孫）
   const all=[]; (function walk(n){ all.push(n); (n.children||[]).forEach(walk); (n._children||[]).forEach(walk); })(root);
   const hits=all.filter(n=> (n.data.name||'').includes(q));
   if(!hits.length){ highlightIds=new Set(); update(); updateSummary(); return; }
@@ -461,7 +466,6 @@ function applySearch(){
   updateSummary();
 }
 
-// 展開：把目前搜尋命中的節點展開（祖先 + 子孫）
 function expandSearchTargets(){
   const kw = (searchKeyword||'').trim();
   if(!kw) return;
@@ -473,22 +477,21 @@ function expandSearchTargets(){
   fitToContent();
 }
 
-// 定位：把目前搜尋命中的第一個節點移到中間偏上
 function locateFirstMatch(){
   const kw = (searchKeyword||'').trim();
   if(!kw) return;
   const all=[]; (function walk(n){ all.push(n); (n.children||[]).forEach(walk); (n._children||[]).forEach(walk); })(root);
   const match = all.find(n => (n.data.name||'').includes(kw));
   if(match){
-    expandAncestors(match); // 需要展開祖先，確保在可視
+    expandAncestors(match);
     update();
     centerOnNode(match, 80);
   }
 }
 
-/* =======================================================================================
-   7) 摘要統計（同原本邏輯，掃描目前“未淡化”的可見節點）
-   ======================================================================================= */
+/* ======================================================================================= */
+// 7) 統計摘要
+/* ======================================================================================= */
 
 function updateSummary(){
   let nodes=getVisibleNodes();
@@ -510,48 +513,58 @@ function updateSummary(){
   document.getElementById('highPerformers').textContent=high;
 }
 
-/* =======================================================================================
-   8) 事件綁定（日期目前僅做演示；若之後要串 API，再在這裡觸發重算）
-   ======================================================================================= */
+/* ======================================================================================= */
+// 8) 事件綁定
+/* ======================================================================================= */
 
 document.getElementById('btnApply').addEventListener('click', ()=>{
-  // TODO: 接後端時，依日期重新拉績效後呼叫 update()/updateSummary()
-  update(); updateSummary();
+  update(); 
+  updateSummary();
 });
+
 document.getElementById('btnSearch').addEventListener('click', ()=>{
   applySearch();
-  fitToContent();  // << 新增
+  fitToContent();
 });
+
 document.getElementById('btnClear').addEventListener('click', ()=>{
   document.getElementById('searchName').value='';
-  searchKeyword=''; highlightIds=null; 
+  searchKeyword=''; 
+  highlightIds=null; 
   update(); 
   updateSummary();
   fitToContent();
 });
+
 document.getElementById('btnExpand').addEventListener('click', expandSearchTargets);
 document.getElementById('btnLocate').addEventListener('click', locateFirstMatch);
 
-// 即時輸入也更新淡化（可留可關）
 document.getElementById('searchName').addEventListener('input', ()=>{
   applySearch();
 });
 
 // Zoom 控制
-document.getElementById('btnZoomIn').addEventListener('click', ()=> viewport.setZoom(viewport.scale.x * 1.2, true));
-document.getElementById('btnZoomOut').addEventListener('click',()=> viewport.setZoom(viewport.scale.x / 1.2, true));
+document.getElementById('btnZoomIn').addEventListener('click', ()=> {
+  if (viewport.setZoom && typeof viewport.setZoom === 'function') {
+    viewport.setZoom(viewport.scale.x * 1.2, true);
+  } else {
+    viewport.scale.set(viewport.scale.x * 1.2);
+  }
+});
+
+document.getElementById('btnZoomOut').addEventListener('click',()=> {
+  if (viewport.setZoom && typeof viewport.setZoom === 'function') {
+    viewport.setZoom(viewport.scale.x / 1.2, true);
+  } else {
+    viewport.scale.set(viewport.scale.x / 1.2);
+  }
+});
+
 document.getElementById('btnFit').addEventListener('click', ()=> fitToContent());
 
-/* =======================================================================================
-   9) 之後的效能升級建議（已標註 TODO 的位置）
-   ---------------------------------------------------------------------------------------
-   - 物件池化：node/link 對象可放回池而不是 destroy（減少 GC）。
-   - 虛擬渲染：只渲染視窗附近的節點與相連邊（可用 viewport.getVisibleBounds()）。
-   - 文字批量：名稱/數字可改 BitmapFont（Pixi 支援），大量節點時更省。
-   - 線段圖層：大量邊可改 mesh 或用細分度更低的曲線/直線。
-   ======================================================================================= */
-})();
-  
+// 初始化
+init();
+
 </script>
 </body>
 </html>
