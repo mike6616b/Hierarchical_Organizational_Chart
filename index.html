@@ -3,72 +3,92 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>組織架構圖</title>
+  <title>組織架構圖 MVP</title>
 
-  <!-- 使用穩定版本的CDN -->
+  <!-- D3 只負責：樹狀佈局 / 資料處理 / 目前的 SVG 繪圖 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.10/pixi.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi-viewport/4.36.1/viewport.min.js"></script>
 
   <style>
     :root { --bg:#f5f6fa; --card:#fff; --ink:#2c3e50; --muted:#7f8c8d; }
-    *{box-sizing:border-box}
-    body{ margin:0; font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg) }
+    *{ box-sizing:border-box }
+    body{
+      margin:0;
+      font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg);
+    }
 
     .container{max-width:1400px;margin:16px auto;background:var(--card);border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.08);overflow:hidden}
     .header{position:relative;padding:20px;color:#fff;background:linear-gradient(135deg,#2c3e50 0%,#3498db 100%)}
     .header h1{margin:0 0 6px;font-size:22px}
     .header p{margin:0;opacity:.9}
-    .date-filter{position:absolute;top:16px;right:16px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(10px);border-radius:10px;padding:10px}
-    .date-filter input[type="date"],.date-filter input[type="text"]{width:160px;padding:8px;border:none;border-radius:6px;background:rgba(255,255,255,.95);font-size:12px}
+
+    .date-filter{
+      position:absolute;top:16px;right:16px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+      background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);backdrop-filter:blur(10px);
+      border-radius:10px;padding:10px
+    }
+    .date-filter input[type="date"],.date-filter input[type="text"]{
+      width:160px;padding:8px;border:none;border-radius:6px;background:rgba(255,255,255,.95);font-size:12px
+    }
     .date-filter button{padding:8px 12px;border:none;border-radius:6px;background:#27ae60;color:#fff;font-size:12px;cursor:pointer}
+
     .chart-container{padding:16px;text-align:center;position:relative}
     .instructions{background:linear-gradient(135deg,#e8f5e8 0%,#f0f8ff 100%);border:1px solid #27ae60;color:var(--ink);padding:12px;border-radius:10px;margin:0 0 12px;font-size:13px}
 
     .stats-summary{display:flex;justify-content:space-around;gap:8px;flex-wrap:wrap;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px;border-radius:10px;margin-top:12px}
-    .stat-item{text-align:center}
-    .stat-value{font-size:22px;font-weight:800;display:block}
-    .stat-label{font-size:12px;opacity:.9}
+    .stat-item{text-align:center}.stat-value{font-size:22px;font-weight:800;display:block}.stat-label{font-size:12px;opacity:.9}
 
-    #chart{ position:relative; width:100%; height:70vh; }
-    #zoomControls{ position:absolute; top:8px; right:8px; display:flex; gap:6px; z-index:3; }
-    #zoomControls button{ padding:4px 8px; border-radius:6px; font-size:12px; background:rgba(255,255,255,0.9); border:1px solid #ccc; cursor:pointer; }
+    .node circle{stroke-width:2px;transition:all .25s ease}.node circle:hover{transform:scale(1.08)}
+    .node text{fill:var(--ink);text-anchor:middle;pointer-events:none}
+    .name-text{font-weight:700;font-size:14px}
+    .level-text{font-size:11px;fill:var(--muted)}
+    .orders-text{font-size:10px;fill:#27ae60;font-weight:700}
+    .pickup-text{font-size:10px;fill:#8e44ad;font-weight:700}
+    .link{fill:none;stroke:#bdc3c7;stroke-width:2px;stroke-opacity:.85}
 
-    .dot{ display:inline-block; width:12px; height:12px; border-radius:50%; border:2px solid; vertical-align:middle }
-    .dot-dealer{ background:#5582b4; border-color:#3f668e }
-    .dot-level{  background:#f7959d; border-color:#d86a74 }
-    .dot-normal{ background:#deabe9; border-color:#b687c8 }
-    .dot-high{   background:#ffffff; border-color:#fff600 }
+    /* 畫布容器（目前 SVG；改 PixiJS 時會替換，見 [PIXIREFACTOR]） */
+    #chart svg{width:100%;height:70vh;display:block;cursor:grab}
+    #chart svg.grabbing{cursor:grabbing}
+    #chart{position:relative}
+    #zoomControls{position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:3}
+    #zoomControls button{padding:4px 8px;border-radius:6px;font-size:12px}
+    #btnFit{display:none} /* 如需顯示 Fit，可改成 display:block */
+    .dot{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid;vertical-align:middle}
+    .dot-dealer{background:#5582b4;border-color:#3f668e}
+    .dot-level{background:#f7959d;border-color:#d86a74}
+    .dot-normal{background:#deabe9;border-color:#b687c8}
+    .dot-high{background:#ffffff;border-color:#fff600}
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- Header + 篩選列 -->
     <div class="header">
       <h1>組織架構圖</h1>
       <p>點擊節點展開下線組織，查看各階段業績表現</p>
       <div class="date-filter">
         <input type="date" id="startDate" value="2025-01-01" />
-        <input type="date" id="endDate" value="2025-08-15" />
+        <input type="date" id="endDate"   value="2025-08-15" />
         <button id="btnApply">更新數據</button>
         <input type="text" id="searchName" placeholder="搜尋人名" />
-        <button id="btnSearch" style="background:#3b82f6">搜尋</button>
-        <button id="btnClear" style="background:#f51111">清除</button>
-        <button id="btnExpand" style="background:#6b7280">展開</button>
-        <button id="btnLocate" style="background:#0ea5e9">定位</button>
+        <button id="btnSearch"  style="background:#3b82f6">搜尋</button>
+        <button id="btnClear"   style="background:#f51111">清除</button>
+        <button id="btn-expand" style="background:#6b7280">展開</button>
+        <button id="btnLocate"  style="background:#4b5563">定位</button>
       </div>
     </div>
 
+    <!-- 圖例 -->
     <div class="chart-container">
       <div class="instructions">
-        使用日期區間與搜尋人名
-        <div>
-          <span class="dot dot-dealer"></span> 經銷商　
-          <span class="dot dot-level"></span> 高/中/初級　
-          <span class="dot dot-normal"></span> 一般　
-          <span class="dot dot-high"></span> 高業績（月均訂貨 ≥ 106萬）
-        </div>
+        使用日期區間與搜尋人名　|　等級配色：
+        <span class="dot dot-dealer"></span> 經銷商　
+        <span class="dot dot-level"></span> 高/中/初級　
+        <span class="dot dot-normal"></span> 一般　
+        <span class="dot dot-high"></span> 高業績（月均訂貨 ≥ 106萬）
       </div>
 
+      <!-- 畫布容器：目前用 SVG；改 PixiJS 時會整段替換（見 [PIXIREFACTOR]） -->
       <div id="chart">
         <div id="zoomControls">
           <button id="btnZoomIn">＋</button>
@@ -77,6 +97,7 @@
         </div>
       </div>
 
+      <!-- 摘要卡 -->
       <div class="stats-summary">
         <div class="stat-item"><span class="stat-value" id="totalOrders">0</span><span class="stat-label">總訂貨金額 (萬元)</span></div>
         <div class="stat-item"><span class="stat-value" id="totalPickup">0</span><span class="stat-label">總提貨金額 (萬元)</span></div>
@@ -86,485 +107,418 @@
     </div>
   </div>
 
-<script>
-/* ======================================================================================= */
-// 1) 資料產生 - 修復NaN問題
-/* ======================================================================================= */
+  <script>
+    // ================================
+    // 1) 模擬資料：隨機產生樹狀結構與績效
+    // ================================
+    function generateOrgTree(opts = {}) {
+      const {
+        seed = Date.now(),
+        dealers = 3,
+        depth = 10,
+        branching = { dealer:[3,6], senior:[4,8], mid:[2,7], junior:[1,6], general:[0,0] },
+        perfByLevel = {
+          ROOT:  { order:[0,0],    pickupRatio:[0,0] },
+          經銷商: { order:[350,500], pickupRatio:[0.55,0.9] },
+          高級:   { order:[120,220], pickupRatio:[0.4,0.9]  },
+          中級:   { order:[60,110],  pickupRatio:[0.45,0.9] },
+          初級:   { order:[40,80],   pickupRatio:[0.3,0.85] },
+          一般:   { order:[18,40],   pickupRatio:[0.5,0.8]  },
+        }
+      } = opts;
 
-function generateOrgTree(opts = {}) {
-  const {
-    seed = Date.now(),
-    dealers = 3,
-    depth = 6,
-    branching = { dealer:[3,5], senior:[2,4], mid:[2,4], junior:[2,4], general:[0,0] },
-    perfByLevel = {
-      ROOT:{ order:[0,0], pickupRatio:[0,0] },
-      經銷商:{ order:[350,500], pickupRatio:[0.65,0.9] },
-      高級:{ order:[120,220], pickupRatio:[0.6,0.9] },
-      中級:{ order:[60,110],  pickupRatio:[0.55,0.9] },
-      初級:{ order:[40,80],   pickupRatio:[0.5,0.85] },
-      一般:{ order:[18,40],   pickupRatio:[0.5,0.8] }
-    }
-  } = opts;
+      // PRNG
+      function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296}}
+      const rnd = mulberry32(hashSeed(seed));
+      function hashSeed(s){ if(typeof s==='string'){let h=2166136261>>>0; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i); h=Math.imul(h,16777619)} return h>>>0 } return s>>>0 }
 
-  function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296}}
-  const rnd = mulberry32(hashSeed(seed));
-  function hashSeed(s){ if(typeof s==='string'){let h=2166136261>>>0; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i); h=Math.imul(h,16777619)} return h>>>0 } return s>>>0 }
+      // Helpers
+      const pick = arr => arr[Math.floor(rnd()*arr.length)];
+      const randInt = (min,max)=>Math.floor(rnd()*(max-min+1))+min;
+      const randFloat = (min,max)=>rnd()*(max-min)+min;
+      const idCounters = new Map();
+      const nextId = prefix => { const n=(idCounters.get(prefix)||0)+1; idCounters.set(prefix,n); return prefix+String(n).padStart(3,'0'); };
 
-  const pick = arr => arr[Math.floor(rnd()*arr.length)];
-  const randInt = (min,max)=>Math.floor(rnd()*(max-min+1))+min;
-  const randFloat = (min,max)=>rnd()*(max-min)+min;
+      const lastNames = '李王張劉陳楊黃趙周吳徐孫朱馬胡郭林何高梁鄭羅宋謝唐韓曹許鄧蕭馮曾潘蔡蔣袁於杜葉蘇魏呂丁沈姜範盧賈傅鐘白汪錢廖湯文嚴石黎薛金滕康田顧孟方尹江史'.split('');
+      const givenA = '小大中安宥冠柏哲孟家雅怡佩芯志庭宸思凱承博俊品語彤婉筑妍筠苑昀偉敏芳麗傑勇華靜亮慧欣濤磊丹凱娜康秀浩琳楠剛宏宇寧萍潔鵬燕遠娟毅強暉玲兵紅'.split('');
+      const givenB = '明偉豪霖諾瑜欣柔雯庭賢傑瑋均蓉華潔媛婷安甄翔宇洋恩熒雲淇偉敏芳麗傑勇華靜亮慧欣濤磊丹凱娜康浩琳楠剛宏宇寧萍潔鵬遠娟毅強暉玲兵紅'.split('');
+      const prefixByLevel = { ROOT:'ROOT', 經銷商:'CEO', 高級:'R', 中級:'T', 初級:'M', 一般:'U' };
+      function randName(){ return pick(lastNames) + pick(givenA) + pick(givenB); }
 
-  const lastNames = '李王張劉陳楊黃趙周吳徐孫朱馬胡郭林何高梁鄭羅宋謝唐韓曹許鄧蕭馮曾潘蔡蔣袁於杜葉蘇魏呂丁沈姜範盧賈傅鐘白汪錢廖湯文嚴石黎薛金滕康田顧孟方尹江史'.split('');
-  const givenA = '小大中安宥冠柏哲孟家雅怡佩芯志庭宸思凱承博俊品語彤婉筑妍筠苑昀'.split('');
-  const givenB = '明偉豪霖諾瑜欣柔雯庭賢傑瑋均蓉華潔媛婷安甄翔宇洋恩熒雲淇'.split('');
-  const randName = ()=> pick(lastNames) + pick(givenA) + pick(givenB);
-
-  const prefixByLevel = { ROOT:'ROOT', 經銷商:'CEO', 高級:'R', 中級:'T', 初級:'M', 一般:'U' };
-  const idCounters = new Map();
-  const nextId = p => { const n=(idCounters.get(p)||0)+1; idCounters.set(p,n); return p+String(n).padStart(3,'0'); };
-
-  function drawMetrics(level){
-    const conf = perfByLevel[level] || { order:[0,0], pickupRatio:[0,0] };
-    const order = randInt(conf.order[0], conf.order[1]);
-    const ratio = Math.max(0, Math.min(1, randFloat(conf.pickupRatio[0], conf.pickupRatio[1])));
-    const pickup = Math.min(order, Math.round(order*ratio));
-    return { order, pickup };
-  }
-
-  function makeNode(level){
-    const id = nextId(prefixByLevel[level] || 'N');
-    const name = randName();
-    const {order, pickup} = drawMetrics(level);
-    return { id, name, level, order, pickup, 訂貨:order, 提貨:pickup };
-  }
-
-  function childrenPlan(level){
-    switch(level){
-      case '經銷商': return { next:['高級','中級'], key:'dealer' };
-      case '高級':   return { next:['中級','初級'], key:'senior' };
-      case '中級':   return { next:['初級','一般'], key:'mid' };
-      case '初級':   return { next:['一般'], key:'junior' };
-      default:       return { next:[], key:null };
-    }
-  }
-
-  const root = { id:'ROOT', name:'ROOT', level:'ROOT', order:0, pickup:0, children:[] };
-  for(let i=0;i<dealers;i++) root.children.push(makeNode('經銷商'));
-
-  const q = root.children.map(n=>({node:n, depth:2}));
-  while(q.length){
-    const {node, depth:d} = q.shift();
-    if(d >= depth) continue;
-    const plan = childrenPlan(node.level);
-    if(!plan.key) continue;
-    const [minB,maxB] = branching[plan.key];
-    const count = randInt(minB,maxB);
-    if(count<=0) continue;
-    node.children=[];
-    for(let i=0;i<count;i++){
-      const lv = pick(plan.next);
-      const c = makeNode(lv);
-      node.children.push(c);
-      q.push({node:c, depth:d+1});
-    }
-  }
-  return { treeData:root };
-}
-
-/* ======================================================================================= */
-// 2) 共用狀態
-/* ======================================================================================= */
-
-const HIGH_THRESHOLD = 106;
-const { treeData } = generateOrgTree({ seed:'pixi-demo' });
-let root;
-let treeLayout;
-let highlightIds = null;
-let searchKeyword = '';
-
-const XGAP = 90;
-const YGAP = 110;
-
-function collectVisible(n,out){ if(n.depth>0) out.push(n); if(n.children) n.children.forEach(c=>collectVisible(c,out)); }
-function getVisibleNodes(){ const arr=[]; collectVisible(root,arr); return arr; }
-
-function collapse(n){ if(n.children){ n._children = n.children; n._children.forEach(collapse); n.children = null; } }
-function toggle(d){ if(d.children){ d._children = d.children; d._children.forEach(collapse); d.children = null; } else { d.children = d._children; d._children = null; } }
-function expandNode(d){ if(d._children){ d.children=d._children; d._children=null; } }
-function expandAncestors(d){ let p=d; while(p){ expandNode(p); p=p.parent; } }
-function expandSubtree(d){ expandNode(d); if(d.children) d.children.forEach(expandSubtree); }
-
-function shouldDim(d){ if(!highlightIds) return false; return !highlightIds.has(d.data.id); }
-function isHigh(d){ return (d?.data?.order ?? 0) >= HIGH_THRESHOLD; }
-
-/* ======================================================================================= */
-// 3) PixiJS 初始化 - 修復版本兼容性
-/* ======================================================================================= */
-
-const chartEl = document.getElementById('chart');
-
-// 使用PIXI v6的初始化方式
-const app = new PIXI.Application({
-  resizeTo: chartEl,
-  antialias: true,
-  backgroundColor: 0xffffff,
-  transparent: true
-});
-chartEl.appendChild(app.view);
-
-// 使用PIXI.extras.Viewport (v4版本) 或確保正確載入
-let viewport;
-if (window.PIXI && window.PIXI.extras && window.PIXI.extras.Viewport) {
-  viewport = new PIXI.extras.Viewport({
-    screenWidth: app.renderer.width,
-    screenHeight: app.renderer.height,
-    worldWidth: 8000,
-    worldHeight: 8000,
-    interaction: app.renderer.plugins.interaction
-  });
-} else if (window.Viewport) {
-  viewport = new window.Viewport({
-    screenWidth: app.renderer.width,
-    screenHeight: app.renderer.height,
-    worldWidth: 8000,
-    worldHeight: 8000,
-    interaction: app.renderer.plugins.interaction
-  });
-} else {
-  // 降級處理：使用基本Container
-  viewport = new PIXI.Container();
-  viewport.drag = () => viewport;
-  viewport.pinch = () => viewport;
-  viewport.wheel = () => viewport;
-  viewport.decelerate = () => viewport;
-  viewport.fit = () => {};
-  viewport.setZoom = (scale) => { viewport.scale.set(scale); };
-  viewport.moveCenter = (x, y) => { viewport.position.set(-x + app.renderer.width/2, -y + app.renderer.height/2); };
-  viewport.animate = () => ({ once: () => {} });
-}
-
-app.stage.addChild(viewport);
-
-// 啟用手勢（如果支援）
-if (viewport.drag && typeof viewport.drag === 'function') {
-  viewport.drag().pinch().wheel().decelerate();
-}
-
-const linkLayer = new PIXI.Container();
-const nodeLayer = new PIXI.Container();
-viewport.addChild(linkLayer, nodeLayer);
-
-const linkById = new Map();
-const nodeById = new Map();
-
-/* ======================================================================================= */
-// 4) D3樹狀版位計算
-/* ======================================================================================= */
-
-treeLayout = d3.tree().nodeSize([XGAP, YGAP]).separation((a,b)=> (a.parent===b.parent ? 1.2 : 1.8));
-
-function init(){
-  root = d3.hierarchy(treeData, d=>d.children);
-  if (root.children) root.children.forEach(collapse);
-  update();
-  updateSummary();
-  fitToContent();
-  if (viewport.fit && typeof viewport.fit === 'function') {
-    viewport.fit(true);
-  }
-  if (viewport.move && typeof viewport.move === 'function') {
-    viewport.move(0, -80);
-  }
-}
-
-/* ======================================================================================= */
-// 5) PixiJS 繪圖
-/* ======================================================================================= */
-
-function levelFill(l){ 
-  if(l==='經銷商')return 0x5582b4; 
-  if(l==='高級'||l==='中級'||l==='初級')return 0xf7959d; 
-  if(l==='一般')return 0xdeabe9; 
-  return 0xcccccc; 
-}
-function levelStroke(l){ 
-  if(l==='經銷商')return 0x3f668e; 
-  if(l==='高級'||l==='中級'||l==='初級')return 0xd86a74; 
-  if(l==='一般')return 0xb687c8; 
-  return 0x999999; 
-}
-
-function drawLink(id, x1,y1, x2,y2, dim){
-  let g = linkById.get(id);
-  if(!g){ g = new PIXI.Graphics(); linkById.set(id,g); linkLayer.addChild(g); }
-  g.clear();
-  g.lineStyle(2, 0xbdc3c7, dim?0.5:0.85);
-  const cmy = (y1+y2)/2;
-  g.moveTo(x1,y1);
-  g.bezierCurveTo(x1,cmy, x2,cmy, x2,y2);
-}
-
-function ensureNode(d){
-  let e = nodeById.get(d.data.id);
-  if (e) return e;
-
-  const circle = new PIXI.Graphics();
-  const name   = new PIXI.Text('', {fontSize:14, fill:0x2c3e50, fontWeight:'bold'});
-  const level  = new PIXI.Text('', {fontSize:11, fill:0x7f8c8d});
-  const tOrder = new PIXI.Text('', {fontSize:10, fill:0x27ae60, fontWeight:'bold'});
-  const tPickup= new PIXI.Text('', {fontSize:10, fill:0x8e44ad, fontWeight:'bold'});
-  
-  name.anchor.set(0.5); level.anchor.set(0.5); tOrder.anchor.set(0.5); tPickup.anchor.set(0.5);
-  name.y=-28; level.y=-14; tOrder.y=18; tPickup.y=32;
-
-  const container = new PIXI.Container();
-  container.interactive = true;
-  container.buttonMode = true; // v6 compatibility
-  container.on('pointerdown', ()=>{
-    toggle(d);
-    update();
-    updateSummary();
-    fitToContent();
-  });
-
-  container.addChild(circle, name, level, tOrder, tPickup);
-  nodeLayer.addChild(container);
-
-  e = { container, circle, name, level, tOrder, tPickup };
-  nodeById.set(d.data.id, e);
-  return e;
-}
-
-function centerOnNode(d, topPad=80){
-  if(!d || !viewport.moveCenter) return;
-  const k = viewport.scale ? viewport.scale.x : 1;
-  if (viewport.animate && typeof viewport.animate === 'function') {
-    viewport.animate({ time: 500, ease:'easeInOutSine', position: new PIXI.Point(d.x, d.y), scale: new PIXI.Point(k,k) });
-  }
-  viewport.moveCenter(d.x, d.y);
-  if (viewport.move && typeof viewport.move === 'function') {
-    viewport.move(0, -(app.renderer.height/2 - topPad));
-  }
-}
-
-function fitToContent(padTop = 80, padLR = 40, bump = 1.15) {
-  const nodes = getVisibleNodes();
-  if (!nodes.length) {
-    if (viewport.fit && typeof viewport.fit === 'function') {
-      viewport.fit(true);
-    }
-    if (viewport.move && typeof viewport.move === 'function') {
-      viewport.move(0, -padTop);
-    }
-    return;
-  }
-
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const d of nodes) {
-    if (d.x < minX) minX = d.x;
-    if (d.x > maxX) maxX = d.x;
-    if (d.y < minY) minY = d.y;
-    if (d.y > maxY) maxY = d.y;
-  }
-  const w = Math.max(1, maxX - minX);
-  const h = Math.max(1, maxY - minY);
-
-  const sw = app.renderer.width;
-  const sh = app.renderer.height;
-
-  const kBase = Math.min(
-    (sw - padLR * 2) / w,
-    (sh - (padTop + padLR)) / h
-  );
-  const k = Math.max(0.2, Math.min(3, kBase * bump));
-
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
-
-  if (viewport.animate && typeof viewport.animate === 'function') {
-    viewport.animate({
-      time: 400,
-      position: new PIXI.Point(cx, cy),
-      scale: new PIXI.Point(k, k),
-      ease: 'easeInOutSine'
-    }).once('moved', () => {
-      if (viewport.moveCenter && typeof viewport.moveCenter === 'function') {
-        viewport.moveCenter(cx, cy);
+      function childrenPlan(level){
+        switch(level){
+          case '經銷商': return { next:['經銷商','高級','中級'], key:'dealer' };
+          case '高級':   return { next:['高級','中級','初級'], key:'senior' };
+          case '中級':   return { next:['中級','初級','一般'], key:'mid' };
+          case '初級':   return { next:['初級','一般'],       key:'junior' };
+          default:       return { next:[], key:null };
+        }
       }
-      if (viewport.move && typeof viewport.move === 'function') {
-        viewport.move(0, -(sh / 2 - padTop));
+
+      function makeNode(level){
+        const id = nextId(prefixByLevel[level] || 'N');
+        const name = randName();
+        return { id, name, level, metrics:{order:0,pickup:0}, order:0, pickup:0, 訂貨:0, 提貨:0 };
       }
+
+      function drawMetrics(level){
+        const conf = perfByLevel[level] || { order:[0,0], pickupRatio:[0,0] };
+        const order = randInt(conf.order[0], conf.order[1]);
+        const ratio = Math.max(0, Math.min(1, randFloat(conf.pickupRatio[0], conf.pickupRatio[1])));
+        const pickup = Math.min(order, Math.round(order * ratio));
+        return { order, pickup };
+      }
+
+      // root
+      const root = { id:'ROOT', name:'ROOT', level:'ROOT', metrics:{order:0,pickup:0}, order:0, pickup:0, 訂貨:0, 提貨:0, children:[] };
+      const perfProfile = { [root.id]: { order:0, pickup:0 } };
+
+      // 第一層 經銷商
+      for(let i=0;i<dealers;i++){
+        const dealer = makeNode('經銷商');
+        const m = drawMetrics('經銷商');
+        Object.assign(dealer, { metrics:m, order:m.order, pickup:m.pickup, 訂貨:m.order, 提貨:m.pickup });
+        root.children.push(dealer);
+        perfProfile[dealer.id] = { ...m };
+      }
+
+      // BFS 擴展
+      const queue = [...root.children.map(n=>({node:n, depth:2}))];
+      while(queue.length){
+        const { node, depth:d } = queue.shift();
+        if(d >= depth) continue;
+        const plan = childrenPlan(node.level);
+        if(!plan.key) continue;
+
+        const [minB, maxB] = branching[plan.key] || [0,0];
+        const childCount = randInt(minB, maxB);
+        if(childCount<=0) continue;
+
+        node.children = [];
+        for(let i=0;i<childCount;i++){
+          const nextLevel = pick(plan.next);
+          const child = makeNode(nextLevel);
+          const m = drawMetrics(nextLevel);
+          Object.assign(child,  { metrics:m, order:m.order, pickup:m.pickup, 訂貨:m.order, 提貨:m.pickup });
+          node.children.push(child);
+          perfProfile[child.id] = { ...m };
+          queue.push({ node:child, depth:d+1 });
+        }
+      }
+
+      return { treeData: root, perfProfile, seed };
+    }
+
+    // 預設一棵樹
+    const { treeData, perfProfile } = generateOrgTree({ seed:'demo-2025-08-24', dealers:3, depth:10 });
+
+    // 對外資料介面（可替換成 API）
+    window.DataProvider = {
+      async getTreeRoot(){ return structuredClone(treeData); },
+      async getPerf(ids, s, e){
+        const map = {};
+        for (const id of ids){
+          const p = perfProfile[id] || {order:0,pickup:0};
+          map[id] = { orders:Math.round(p.order), pickup:Math.round(p.pickup), months:1 };
+        }
+        return map;
+      }
+    };
+
+    // ================================
+    // 2) 視覺：SVG 畫布（→ PixiJS 時替換）
+    // ================================
+    const HIGH_THRESHOLD = 106;
+    const { getTreeRoot, getPerf } = window.DataProvider;
+
+    let root, treeLayout, g;
+    let currentStart='2025-01-01', currentEnd='2025-08-15';
+    const perfCache = new Map();
+    const margin = { top:120, right:40, bottom:40, left:40 };
+
+    // [PIXIREFACTOR] 這段會在改用 PixiJS 時整段替換
+    const svg = d3.select('#chart').append('svg').attr('preserveAspectRatio','xMidYMid meet');
+    const zoomLayer = svg.append('g');
+    g = zoomLayer.append('g'); // 實際繪圖群組
+
+    function applySize(){
+      const el = document.getElementById('chart');
+      const W  = el.clientWidth;
+      const H  = Math.max(500, Math.floor(window.innerHeight*0.7));
+      svg.attr('viewBox', [0, 0, W, H].join(' '));
+      g.attr('transform', `translate(${margin.left},${margin.top})`);
+    }
+    applySize();
+    window.addEventListener('resize', ()=>{ applySize(); fitToContentTop(); });
+
+    function vbSize(){
+      const [, , W, H] = svg.attr('viewBox').split(' ').map(Number);
+      return { W, H };
+    }
+
+    // 佈局（以節點間距為主，視窗縮放靠 zoom 控）
+    const XGAP = 60, YGAP = 100;
+    treeLayout = d3.tree().nodeSize([XGAP, YGAP]).separation((a,b)=> (a.parent===b.parent ? 1.2 : 1.8));
+
+    // 縮放/拖曳
+    const zoom = d3.zoom().scaleExtent([0.3,2]).on('zoom', (ev)=>{
+      zoomLayer.attr('transform', ev.transform);
+      const k = ev.transform.k;
+      d3.selectAll('.orders-text,.pickup-text').style('display', k >= 1.0 ? null : 'none');
+      d3.selectAll('.level-text').style('display',  k >= 0.8 ? null : 'none');
     });
-  } else {
-    // 簡單處理
-    viewport.scale.set(k);
-    viewport.position.set(-cx*k + sw/2, -cy*k + sh/2 - padTop);
-  }
-}
+    svg.call(zoom).on('dblclick.zoom', null);
+    svg.on('mousedown', ()=> svg.classed('grabbing', true));
+    d3.select(window).on('mouseup', ()=> svg.classed('grabbing', false));
+    d3.select('#btnZoomIn').on('click', ()=> svg.transition().duration(200).call(zoom.scaleBy, 1.2));
+    d3.select('#btnZoomOut').on('click',()=> svg.transition().duration(200).call(zoom.scaleBy, 1/1.2));
+    d3.select('#btnFit').on('click', fitToContentTop);
+    d3.select('#btnLocate').on('click', async () => {
+      const kw = (document.getElementById('searchName').value || '').trim();
+      if (!kw || !root) return;
 
-function update(){
-  treeLayout(root);
-  const nodes = getVisibleNodes();
-  const links = nodes.filter(d=> d.parent && d.parent.depth>0);
+      // 找到第一個名字包含關鍵字的節點（含未展開樹）
+      const all = [];
+      (function walk(n){ all.push(n); (n.children||[]).forEach(walk); (n._children||[]).forEach(walk); })(root);
+      const target = all.find(n => (n.data.name || '').includes(kw));
+      if (!target) return;
 
-  const liveNodeIds = new Set(nodes.map(d=>d.data.id));
-  const liveLinkIds = new Set(links.map(d=>d.data.id));
+      // 保證路徑可見：展開所有祖先（不強制展開整個子樹，避免太慢）
+      expandAncestors(target);
 
-  for(const [id,g] of linkById){
-    if(!liveLinkIds.has(id)){ g.destroy({children:true}); linkById.delete(id); }
-  }
-  for(const [id,e] of nodeById){
-    if(!liveNodeIds.has(id)){ e.container.destroy({children:true}); nodeById.delete(id); }
-  }
+      // 更新數據與佈局，之後定位
+      await refreshVisiblePerf();
+      update(root);
+      setTimeout(() => centerOnNode(target, 80), 0);  // 等 DOM 佈局完再移動
+    });
 
-  for(const d of links){
-    const dim = shouldDim(d) || shouldDim(d.parent);
-    drawLink(d.data.id, d.parent.x, d.parent.y, d.x, d.y, dim);
-  }
+    
+    // ================================
+    // 3) 初始化與互動
+    // ================================
+    init();
 
-  for(const d of nodes){
-    const dim = shouldDim(d);
-    const e = ensureNode(d);
+    async function init(){
+      const data = await getTreeRoot();
+      root = d3.hierarchy(data, d=>d.children);
 
-    e.container.position.set(d.x, d.y);
-    e.container.alpha = dim ? 0.3 : 1.0;
+      // 預設：只顯示經銷商（收折其子孫）
+      if (root.children) root.children.forEach(collapse);
 
-    const fill = levelFill(d.data.level);
-    const stroke = isHigh(d) ? 0xfff600 : levelStroke(d.data.level);
-    const strokeW = isHigh(d) ? 3 : 2;
+      const { W } = vbSize();
+      root.x0 = W/2; root.y0 = 0;
 
-    e.circle.clear().lineStyle(strokeW, stroke, 1).beginFill(fill,1).drawCircle(0,0,8).endFill();
-    e.name.text   = d.data.name;
-    e.level.text  = d.data.level || '';
-    e.tOrder.text = `訂貨：${Math.round(d.data.order||0)}萬`;
-    e.tPickup.text= `提貨：${Math.round(d.data.pickup||0)}萬`;
-  }
-}
+      await refreshVisiblePerf();
+      update(root);
+      updateSummary();
+    }
 
-/* ======================================================================================= */
-// 6) 搜尋功能
-/* ======================================================================================= */
+    // 更新日期
+    document.getElementById('btnApply').addEventListener('click', ()=>{
+      const s = startDate.value, e = endDate.value;
+      if(!s||!e) return alert('請選擇完整的日期區間');
+      if(new Date(s) > new Date(e)) return alert('開始日期不能晚於結束日期');
+      currentStart=s; currentEnd=e;
+      refreshVisiblePerf().then(()=>{ update(root); updateSummary(); });
+    });
 
-function applySearch(){
-  const q = (document.getElementById('searchName').value||'').trim();
-  searchKeyword = q;
-  if(!q){ highlightIds=null; update(); updateSummary(); return; }
+    // 搜尋與清除
+    let searchKeyword = '';
+    d3.select('#searchName').on('input', function(){
+      searchKeyword = this.value.trim();
+      update(root);
+    });
+    document.getElementById('btnSearch').addEventListener('click', applySearch);
+    document.getElementById('btnClear').addEventListener('click', ()=>{
+      highlightIds = null; update(root); updateSummary();
+    });
 
-  const all=[]; (function walk(n){ all.push(n); (n.children||[]).forEach(walk); (n._children||[]).forEach(walk); })(root);
-  const hits=all.filter(n=> (n.data.name||'').includes(q));
-  if(!hits.length){ highlightIds=new Set(); update(); updateSummary(); return; }
+    // 一鍵展開搜尋到的對象（祖先＋子孫）
+    d3.select('#btn-expand').on('click', async ()=>{
+      if (!root) return;
+      const kw = (searchKeyword || '').trim();
+      if (!kw) return;
+      const matches = root.descendants().filter(n => (n.data.name||'').includes(kw));
+      matches.forEach(n => { expandAncestors(n); expandSubtree(n); });
+      await refreshVisiblePerf();
+      update(root); fitToContentTop(); updateSummary();
+    });
 
-  const keep=new Set();
-  const addAnc=(n)=>{ let cur=n; while(cur){ keep.add(cur.data.id); cur=cur.parent; } };
-  const addDesc=(n)=>{ (function dfs(x){ keep.add(x.data.id); (x.children||[]).forEach(dfs); (x._children||[]).forEach(dfs); })(n); };
-  for(const h of hits){ addAnc(h); addDesc(h); }
-  keep.delete('ROOT');
-  highlightIds=keep;
+    // ================================
+    // 4) 視圖輔助
+    // ================================
+    function fitToContentTop(){
+      const node = g.node();
+      if (!node) return;
 
-  update();
-  updateSummary();
-}
+      const b = node.getBBox();
+      if (!isFinite(b.width) || !isFinite(b.height) || b.width===0 || b.height===0) {
+        svg.transition().duration(250).call(zoom.transform, d3.zoomIdentity);
+        return;
+      }
+      const [, , fullW, fullH] = svg.attr('viewBox').split(' ').map(Number);
 
-function expandSearchTargets(){
-  const kw = (searchKeyword||'').trim();
-  if(!kw) return;
-  const all=[]; (function walk(n){ all.push(n); (n.children||[]).forEach(walk); (n._children||[]).forEach(walk); })(root);
-  const matches = all.filter(n => (n.data.name||'').includes(kw));
-  matches.forEach(n => { expandAncestors(n); expandSubtree(n); });
-  update();
-  updateSummary();
-  fitToContent();
-}
+      const FIT_PADDING_TOP = 30, FIT_PADDING = 48, FIT_BUMP = 1.6, ZOOM_MIN = 0.4, ZOOM_MAX = 2.5;
+      const baseScale = Math.min(
+        (fullW - FIT_PADDING*2) / b.width,
+        (fullH - (FIT_PADDING_TOP + FIT_PADDING)) / b.height
+      );
+      const k  = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, baseScale * FIT_BUMP));
+      const cx = b.x + b.width/2 + margin.left;
+      const tx = (fullW/2) - (cx * k);
+      const ty = FIT_PADDING_TOP - ((b.y + margin.top) * k);
 
-function locateFirstMatch(){
-  const kw = (searchKeyword||'').trim();
-  if(!kw) return;
-  const all=[]; (function walk(n){ all.push(n); (n.children||[]).forEach(walk); (n._children||[]).forEach(walk); })(root);
-  const match = all.find(n => (n.data.name||'').includes(kw));
-  if(match){
-    expandAncestors(match);
-    update();
-    centerOnNode(match, 80);
-  }
-}
+      svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(tx,ty).scale(k));
+    }
 
-/* ======================================================================================= */
-// 7) 統計摘要
-/* ======================================================================================= */
+    // 將單一節點置中（水平）且靠上（垂直）
+    function centerOnNode(d, topPad = 20, keepScale) {
+      if (!d) return;
+      const [ , , fullW ] = svg.attr('viewBox').split(' ').map(Number);
+      const k = keepScale ?? d3.zoomTransform(svg.node()).k;     // 維持目前縮放
+      const cx = fullW / 2;
 
-function updateSummary(){
-  let nodes=getVisibleNodes();
-  if (highlightIds) nodes = nodes.filter(d => !shouldDim(d));
+      // 目標點的「內容座標」需加上 margin
+      const px = margin.left + d.x;
+      const py = margin.top  + d.y;
 
-  let totalOrders=0,totalPickup=0,totalMembers=0,high=0;
-  for(const n of nodes){
-    if(n.depth===0) continue;
-    totalMembers++;
-    const order  = n.data.order  ?? 0;
-    const pickup = n.data.pickup ?? 0;
-    totalOrders += order;
-    totalPickup += pickup;
-    if (order >= HIGH_THRESHOLD) high++;
-  }
-  document.getElementById('totalOrders').textContent=totalOrders.toLocaleString();
-  document.getElementById('totalPickup').textContent=totalPickup.toLocaleString();
-  document.getElementById('totalMembers').textContent=totalMembers;
-  document.getElementById('highPerformers').textContent=high;
-}
+      // 解: (px*k + tx = cx), (py*k + ty = topPad)
+      const tx = cx     - px * k;
+      const ty = topPad - py * k;
 
-/* ======================================================================================= */
-// 8) 事件綁定
-/* ======================================================================================= */
+      svg.transition().duration(500)
+         .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
+    }
 
-document.getElementById('btnApply').addEventListener('click', ()=>{
-  update(); 
-  updateSummary();
-});
+    function collapse(n){ if(n.children){ n._children=n.children; n._children.forEach(collapse); n.children=null; } }
+    function expandNode(d){ if(d._children){ d.children=d._children; d._children=null; } }
+    function expandAncestors(d){ let p=d; while(p){ expandNode(p); p=p.parent; } }
+    function expandSubtree(d){ expandNode(d); if(d.children) d.children.forEach(expandSubtree); }
 
-document.getElementById('btnSearch').addEventListener('click', ()=>{
-  applySearch();
-  fitToContent();
-});
+    function isHighPerformer(d){ return (d?.data?.order ?? 0) >= HIGH_THRESHOLD; }
+    function levelFill(l){ if(l==='經銷商')return'#5582b4'; if(l==='高級'||l==='中級'||l==='初級')return'#f7959d'; if(l==='一般')return'#deabe9'; return'#ccc'; }
+    function levelStroke(l){ if(l==='經銷商')return'#3f668e'; if(l==='高級'||l==='中級'||l==='初級')return'#d86a74'; if(l==='一般')return'#b687c8'; return'#999'; }
 
-document.getElementById('btnClear').addEventListener('click', ()=>{
-  document.getElementById('searchName').value='';
-  searchKeyword=''; 
-  highlightIds=null; 
-  update(); 
-  updateSummary();
-  fitToContent();
-});
+    function collectVisible(n,out){ if(n.depth>0) out.push(n); if(n.children) n.children.forEach(c=>collectVisible(c,out)); }
+    function getVisibleNodes(){ const arr=[]; collectVisible(root,arr); return arr; }
 
-document.getElementById('btnExpand').addEventListener('click', expandSearchTargets);
-document.getElementById('btnLocate').addEventListener('click', locateFirstMatch);
+    async function refreshVisiblePerf(){
+      treeLayout(root);
+      const visible = getVisibleNodes();
+      const ids = visible.map(n=>n.data.id);
+      const key = id => `${id}|${currentStart}|${currentEnd}`;
+      const need = ids.filter(id=>!perfCache.has(key(id)));
+      if(need.length){
+        const map = await getPerf(need,currentStart,currentEnd);
+        for(const id of need) perfCache.set(key(id), map[id] || {orders:0,pickup:0,months:1});
+      }
+      for (const n of visible) {
+        const perf = perfCache.get(key(n.data.id)) || {orders:0, pickup:0, months:1};
+          n.data.performance = perf;
+          n.data.order  = perf.orders;   
+          n.data.pickup = perf.pickup;   
+      }
+    }
 
-document.getElementById('searchName').addEventListener('input', ()=>{
-  applySearch();
-});
+    // 搜尋：命中者 + 其祖先/子孫留可視，其餘半透明
+    let highlightIds = null;
+    function applySearch(){
+      const q = (searchName.value||'').trim();
+      if(!q){ highlightIds=null; update(root); updateSummary(); return; }
 
-// Zoom 控制
-document.getElementById('btnZoomIn').addEventListener('click', ()=> {
-  if (viewport.setZoom && typeof viewport.setZoom === 'function') {
-    viewport.setZoom(viewport.scale.x * 1.2, true);
-  } else {
-    viewport.scale.set(viewport.scale.x * 1.2);
-  }
-});
+      const all=[]; (function walk(n){ all.push(n); (n.children||[]).forEach(walk); (n._children||[]).forEach(walk); })(root);
+      const hits = all.filter(n => (n.data.name||'').includes(q));
+      if(!hits.length){ highlightIds=new Set(); update(root); updateSummary(); return; }
 
-document.getElementById('btnZoomOut').addEventListener('click',()=> {
-  if (viewport.setZoom && typeof viewport.setZoom === 'function') {
-    viewport.setZoom(viewport.scale.x / 1.2, true);
-  } else {
-    viewport.scale.set(viewport.scale.x / 1.2);
-  }
-});
+      const keep = new Set();
+      const addAnc  = n => { let cur=n; while(cur){ keep.add(cur.data.id); cur=cur.parent; } };
+      const addDesc = n => { (function dfs(x){ keep.add(x.data.id); (x.children||[]).forEach(dfs); (x._children||[]).forEach(dfs); })(n); };
+      for(const h of hits){ addAnc(h); addDesc(h); }
+      keep.delete('ROOT');
+      highlightIds = keep;
+      update(root); updateSummary();
+    }
+    const shouldDim = d => { if(!highlightIds) return false; return !highlightIds.has(d.data.id); };
 
-document.getElementById('btnFit').addEventListener('click', ()=> fitToContent());
+    function topAncestorId(n){ let cur=n; while(cur.parent && cur.parent.depth>0) cur=cur.parent; return cur.data.id; }
 
-// 初始化
-init();
+    // ================================
+    // 5) 繪圖主程式（SVG；→ PixiJS 時替換）
+    // ================================
+    let firstPaint = true;
+    function update(source){
+      treeLayout(root);
+      const nodes = getVisibleNodes();
+      nodes.forEach(d => { d.topId = topAncestorId(d); });
 
-</script>
+      const links = nodes.filter(d => d.parent && d.parent.depth>0);
+      const node = g.selectAll('.node').data(nodes, d=>d.data.id);
+
+      const enter = node.enter().append('g').attr('class','node')
+        .attr('transform', d=> firstPaint ? `translate(${d.x},${d.y})` : `translate(${source.x0||0},${source.y0||0})`)
+        .on('click', async (evt,d)=>{ toggle(d); await refreshVisiblePerf(); update(d); updateSummary(); });
+
+      enter.append('circle').attr('r',8);
+      enter.append('text').attr('class','name-text').attr('dy','-2.5em').text(d=>d.data.name);
+      enter.append('text').attr('class','level-text').attr('dy','-1.2em').text(d=>d.data.level||'');
+      enter.append('text').attr('class','orders-text').attr('dy','1.8em').text(d=>`訂貨：${Math.round(d.data.order||0)}萬`);
+      enter.append('text').attr('class','pickup-text').attr('dy','3.0em').text(d=>`提貨：${Math.round(d.data.pickup||0)}萬`);
+
+      const dur = firstPaint ? 0 : 600;
+      const merged = enter.merge(node);
+      merged.transition().duration(dur).attr('transform', d=>`translate(${d.x},${d.y})`);
+      merged.select('circle')
+        .attr('r',8)
+        .style('fill', d=>levelFill(d.data.level))
+        .style('stroke-width', d=>isHighPerformer(d)?3:2)
+        .style('stroke', d=>isHighPerformer(d)?'#fff600':levelStroke(d.data.level));
+      merged.select('.orders-text').text(d=>`訂貨：${Math.round(d.data.order||0)}萬`);
+      merged.select('.pickup-text').text(d=>`提貨：${Math.round(d.data.pickup||0)}萬`);
+      merged.style('opacity', d=> shouldDim(d)? .3 : 1);
+
+      node.exit().transition().duration(400).attr('transform', d=>`translate(${source.x||0},${source.y||0})`).remove();
+
+      const link = g.selectAll('.link').data(links, d=>d.data.id);
+      link.enter().insert('path','g').attr('class','link')
+        .attr('d', d=> firstPaint ? diagonal(d,d.parent) : diagonal({x:source.x0||0,y:source.y0||0}, {x:source.x0||0,y:source.y0||0}))
+        .merge(link).transition().duration(dur)
+        .attr('d', d=> diagonal(d,d.parent))
+        .style('opacity', d=> !highlightIds ? 1 : (highlightIds.has(d.data.id) && highlightIds.has(d.parent.data.id) ? 1 : .5));
+      link.exit().transition().duration(400).attr('d', d=>{ const o={x:source.x||0,y:source.y||0}; return diagonal(o,o); }).remove();
+
+      nodes.forEach(d=>{ d.x0=d.x; d.y0=d.y; });
+
+      if (firstPaint){ fitToContentTop(); firstPaint=false; }
+    }
+
+    function toggle(d){
+      if(d.children){ d._children=d.children; d._children.forEach(collapse); d.children=null; }
+      else { d.children=d._children; d._children=null; }
+    }
+    function diagonal(s,d){ return `M ${s.x} ${s.y} C ${s.x} ${(s.y+d.y)/2}, ${d.x} ${(s.y+d.y)/2}, ${d.x} ${d.y}`; }
+
+    // ================================
+    // 6) 摘要統計
+    // ================================
+    function updateSummary(){
+      let nodes = getVisibleNodes();
+      if (highlightIds) nodes = nodes.filter(d => !shouldDim(d));
+
+      let totalOrders=0, totalPickup=0, totalMembers=0, high=0;
+      for(const n of nodes){
+        if(n.depth===0) continue;
+        totalMembers++;
+        const order  = n.data.order  ?? n.data.metrics?.order  ?? 0;
+        const pickup = n.data.pickup ?? n.data.metrics?.pickup ?? 0;
+        totalOrders += order; totalPickup += pickup;
+        if (order >= HIGH_THRESHOLD) high++;
+      }
+      document.getElementById('totalOrders').textContent = totalOrders.toLocaleString();
+      document.getElementById('totalPickup').textContent = totalPickup.toLocaleString();
+      document.getElementById('totalMembers').textContent = totalMembers;
+      document.getElementById('highPerformers').textContent = high;
+    }
+
+  </script>
 </body>
 </html>
