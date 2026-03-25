@@ -1,0 +1,15 @@
+# Node environment
+node_modules/
+.env
+
+# Raw data (Too large for Git / PII concern)
+*.xlsx
+*.csv
+
+# Agent/AI temp files
+.agent/
+.agents/
+_agent/
+_agents/
+.gemini/
+/tmp/
