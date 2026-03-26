@@ -596,13 +596,13 @@ async function updateStats(nodePath) {
 
     if (Array.isArray(result) && result[0]) {
       const s = result[0]
-      document.getElementById('statMembers').textContent = (s.total_members || 0).toLocaleString()
-      document.getElementById('statHighPerf').textContent = (s.total_high_performers || 0).toLocaleString()
+      animateNumber('statMembers', s.total_members || 0)
+      animateNumber('statHighPerf', s.total_high_performers || 0)
     }
 
     if (txResult) {
-      document.getElementById('statOrders').textContent = '$' + (txResult.total_amount || 0).toLocaleString()
-      document.getElementById('statPickup').textContent = (txResult.total_quantity || 0).toLocaleString()
+      animateNumber('statOrders', txResult.total_amount || 0, 800, '$')
+      animateNumber('statPickup', txResult.total_quantity || 0)
     }
 
   } catch (err) {
@@ -703,4 +703,41 @@ function getParentPath(nodePath) {
 function escapeHtml(str) {
   if (!str) return ''
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+// ============================================================
+// 動畫工具 (MagicUI Number Ticker)
+// ============================================================
+function animateNumber(elementId, endValue, duration = 800, prefix = '') {
+  const el = document.getElementById(elementId)
+  if (!el) return
+  
+  const currentText = el.textContent.replace(/[^0-9.-]/g, '')
+  const startValue = parseInt(currentText, 10) || 0
+  
+  if (startValue === endValue) {
+    el.textContent = prefix + endValue.toLocaleString()
+    return
+  }
+
+  const startTime = performance.now()
+
+  function update(currentTime) {
+    const elapsed = currentTime - startTime
+    const progress = Math.min(elapsed / duration, 1)
+
+    // easeOutExpo 動畫曲線：先快後慢
+    const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress)
+    const currentValue = Math.floor(startValue + (endValue - startValue) * easeProgress)
+
+    el.textContent = prefix + currentValue.toLocaleString()
+
+    if (progress < 1) {
+      requestAnimationFrame(update)
+    } else {
+      el.textContent = prefix + endValue.toLocaleString() // 確保最後精準到位
+    }
+  }
+
+  requestAnimationFrame(update)
 }

@@ -45,6 +45,11 @@ export class DetailPanel {
     this.loadingEl.style.display = 'none'
     this.contentEl.style.display = 'block'
     
+    // 觸發 Blur Fade In 動畫
+    this.contentEl.classList.remove('blur-fade-in')
+    void this.contentEl.offsetWidth // Trigger reflow
+    this.contentEl.classList.add('blur-fade-in')
+    
     if (!m) {
       this.contentEl.innerHTML = `<div class="error-msg">無法讀取資料，請確認權限或網路連線。</div>`
       return

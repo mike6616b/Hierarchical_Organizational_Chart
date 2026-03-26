@@ -68,7 +68,9 @@ html {
 
 body {
   font-family: var(--font-body);
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--muted-light) 1px, transparent 1px);
+  background-size: 24px 24px;
   color: var(--foreground);
   min-height: 100vh;
   overflow: hidden;
@@ -87,7 +89,9 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 24px;
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   z-index: 100;
@@ -183,13 +187,29 @@ body {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   max-height: 320px;
   overflow-y: auto;
   z-index: 200;
+  animation: blur-fade-in 0.2s var(--ease) forwards;
+}
+
+@keyframes blur-fade-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
 }
 
 .search-result-item {
@@ -554,7 +574,9 @@ body {
   right: 0;
   bottom: 0;
   width: 360px;
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
   z-index: 50;
   display: flex;
@@ -569,7 +591,7 @@ body {
   justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
-  background: #f8fafc;
+  background: transparent;
 }
 
 .dp-title {
@@ -586,6 +608,10 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 24px 20px;
+}
+
+.blur-fade-in {
+  animation: blur-fade-in 0.3s var(--ease) forwards;
 }
 
 .dp-loading {
@@ -753,7 +779,9 @@ body {
   top: calc(100% + 8px);
   right: 0;
   width: 260px;
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
@@ -762,6 +790,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  animation: blur-fade-in 0.2s var(--ease) forwards;
 }
 
 .filter-header {
