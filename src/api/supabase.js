@@ -142,6 +142,28 @@ export async function getMemberTotalTransactions(memberNo, startDate, endDate) {
 }
 
 /**
+ * 批次查詢：確認哪些下線在指定區間內有訂單（用於智慧篩選）
+ * 回傳有訂單的 member_no Set
+ */
+export async function getMembersWithOrders(memberNos, startDate, endDate) {
+  if (!memberNos || memberNos.length === 0) return new Set()
+
+  let query = supabase
+    .from('transactions')
+    .select('member_no')
+    .in('member_no', memberNos)
+    .eq('type', 'order')
+
+  if (startDate) query = query.gte('transaction_date', startDate)
+  if (endDate) query = query.lte('transaction_date', endDate)
+
+  const { data, error } = await query
+  if (error) { console.error('Batch orders error:', error); return new Set() }
+
+  return new Set(data.map(t => t.member_no))
+}
+
+/**
  * 健康檢查
  */
 export async function healthCheck() {

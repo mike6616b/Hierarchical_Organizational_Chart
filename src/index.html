@@ -59,12 +59,38 @@
           <input type="date" id="endDate" class="date-input" />
           <button id="btnApplyDate" class="btn btn-primary btn-sm">套用</button>
         </div>
-        <button id="btnFilterActive" class="btn btn-sm btn-filter" title="僅顯示活躍會員（庫存 > 0）">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-          </svg>
-          <span>篩選活躍</span>
-        </button>
+        <div class="filter-dropdown-container">
+          <button id="btnFilterMenu" class="btn btn-sm btn-filter" title="設定隱藏會員條件">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+            <span>篩選隱藏</span>
+          </button>
+          
+          <div id="filterDropdown" class="filter-dropdown" style="display: none;">
+            <div class="filter-header">合併隱藏下列條件會員：</div>
+            
+            <label class="filter-option">
+              <input type="checkbox" id="chkFilterInventory">
+               庫存小於 
+              <input type="number" id="numFilterInventory" value="1" min="1" class="form-input-sm" style="width: 50px; text-align: center;">
+            </label>
+            
+            <label class="filter-option">
+              <input type="checkbox" id="chkFilterOrders">
+               指定期間內無訂單
+            </label>
+            
+            <div class="filter-match-type">
+              <label><input type="radio" name="filterMatch" value="or" checked> 滿足任一</label>
+              <label><input type="radio" name="filterMatch" value="and"> 滿足所有</label>
+            </div>
+            
+            <div class="filter-actions">
+              <button id="btnApplyFilter" class="btn btn-primary btn-sm w-full">套用隱藏</button>
+            </div>
+          </div>
+        </div>
         <button id="btnLogout" class="btn-icon" title="登出" style="margin-left:8px;color:var(--muted);">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>

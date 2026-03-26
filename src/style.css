@@ -715,7 +715,12 @@ body {
   text-align: center;
 }
 
-/* --- Filter Toggle --- */
+/* --- Filter Dropdown --- */
+.filter-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
 .btn-filter {
   display: inline-flex;
   align-items: center;
@@ -725,7 +730,7 @@ body {
   border-radius: var(--radius);
   background: var(--card);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--duration) var(--ease);
@@ -733,17 +738,83 @@ body {
   white-space: nowrap;
 }
 
-.btn-filter:hover {
+.btn-filter:hover, .btn-filter.active {
   border-color: var(--primary-lighter);
   color: var(--primary);
-}
-
-.btn-filter.active {
   background: var(--primary-bg);
-  border-color: var(--primary-light);
-  color: var(--primary);
 }
 
 .btn-filter.active svg {
   fill: var(--primary-light);
+}
+
+.filter-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 260px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 4px;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  gap: 8px;
+}
+
+.filter-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.filter-match-type {
+  display: flex;
+  gap: 16px;
+  padding: 8px;
+  background: var(--background);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.filter-match-type label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.filter-match-type input[type="radio"] {
+  accent-color: var(--primary);
+}
+
+.filter-actions {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.w-full {
+  width: 100%;
 }

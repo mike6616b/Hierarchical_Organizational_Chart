@@ -3,7 +3,7 @@
  * Entry point: Auth Check → 搜尋 → 載入 → 渲染
  */
 
-import { searchMember, getAncestors, getDirectChildren, getSubtreeStats, getSubtreeTransactionStats } from './api/supabase.js'
+import { searchMember, getAncestors, getDirectChildren, getSubtreeStats, getSubtreeTransactionStats, getMembersWithOrders } from './api/supabase.js'
 import { TreeCanvas } from './components/tree-canvas.js'
 import { TreeNode, computeLayout } from './utils/tree-layout.js'
 import { getLevelDotColor } from './utils/colors.js'
@@ -67,7 +67,12 @@ let treeCanvas = null      // TreeCanvas instance
 let currentMember = null   // 目前查詢的會員
 let searchTimer = null     // debounce timer
 let activeResultIdx = -1   // keyboard navigation
-let filterActive = false   // 智慧篩選 toggle
+let filterConfig = {       // 智慧篩選 dropdown state
+  checkInventory: false,
+  inventoryMax: 1,
+  checkOrders: false,
+  matchType: 'or',         // 'or' | 'and'
+}
 let nodeMap = new Map()    // node_path -> TreeNode
 let allChildrenCache = new Map() // node_path -> raw children data (before filter)
 
@@ -214,7 +219,7 @@ async function selectMember(member) {
     const children = await getDirectChildren(nodePath)
 
     // 3. 建構樹
-    buildTree(ancestors, member, children)
+    await buildTree(ancestors, member, children)
 
     // 4. 更新統計
     updateStats(nodePath)
@@ -230,7 +235,7 @@ async function selectMember(member) {
 /**
  * 建構 TreeNode 樹並渲染
  */
-function buildTree(ancestors, targetMember, children) {
+async function buildTree(ancestors, targetMember, children) {
   // 排序祖先：從上到下 (短 path → 長 path)
   const sorted = [...ancestors].sort((a, b) => {
     const aLen = (a.node_path || '').split('.').length
@@ -282,7 +287,7 @@ function buildTree(ancestors, targetMember, children) {
   allChildrenCache.set(targetMember.node_path, children)
 
   // 建下線節點（套用篩選）
-  appendChildNodes(targetNode, children)
+  await appendChildNodes(targetNode, children)
 
   treeRoot = root
 
@@ -293,45 +298,15 @@ function buildTree(ancestors, targetMember, children) {
 }
 
 /**
- * 將 children 加入父節點，攝用篩選遏輯
+ * 將 children 加入父節點，應用篩選邏輯
  */
-function appendChildNodes(parentNode, children) {
+async function appendChildNodes(parentNode, children) {
   parentNode.children = []
 
-  if (filterActive) {
-    const active = []
-    const inactive = []
-    for (const child of children) {
-      const inv = Number(child.inventory) || 0
-      if (inv > 0) {
-        active.push(child)
-      } else {
-        inactive.push(child)
-      }
-    }
+  // 是否有啟用任何過濾條件
+  const hasFilter = filterConfig.checkInventory || filterConfig.checkOrders
 
-    // 加入活躍節點
-    for (const child of active) {
-      const childNode = new TreeNode(child, parentNode)
-      childNode.hasChildren = true
-      childNode.childrenLoaded = false
-      parentNode.children.push(childNode)
-      nodeMap.set(child.node_path, childNode)
-    }
-
-    // 非活躍節點 → 合併為群組節點
-    if (inactive.length > 0) {
-      const groupNode = new TreeNode(
-        { name: `+${inactive.length} 名其他會員`, member_no: '__group__', level: '' },
-        parentNode
-      )
-      groupNode.isGroupNode = true
-      groupNode.groupCount = inactive.length
-      groupNode.groupedMembers = inactive
-      groupNode.hasChildren = false
-      parentNode.children.push(groupNode)
-    }
-  } else {
+  if (!hasFilter) {
     // 不篩選：全部顯示
     for (const child of children) {
       const childNode = new TreeNode(child, parentNode)
@@ -340,6 +315,76 @@ function appendChildNodes(parentNode, children) {
       parentNode.children.push(childNode)
       nodeMap.set(child.node_path, childNode)
     }
+    return
+  }
+
+  // 準備判斷訂單條件（批次查詢）
+  let membersWithOrders = new Set()
+  if (filterConfig.checkOrders && children.length > 0) {
+    const memberNos = children.map(c => c.member_no)
+    const start = startDateInput.value
+    const end = endDateInput.value
+    membersWithOrders = await getMembersWithOrders(memberNos, start, end)
+  }
+
+  const active = []
+  const inactive = [] // 要合併成群組的
+
+  for (const child of children) {
+    let hideByInventory = false
+    let hideByOrders = false
+
+    if (filterConfig.checkInventory) {
+      const inv = Number(child.inventory) || 0
+      if (inv < filterConfig.inventoryMax) {
+        hideByInventory = true
+      }
+    }
+
+    if (filterConfig.checkOrders) {
+      if (!membersWithOrders.has(child.member_no)) {
+        hideByOrders = true
+      }
+    }
+
+    let shouldHide = false
+    if (filterConfig.matchType === 'or') {
+      shouldHide = hideByInventory || hideByOrders
+    } else {
+      // AND：必須同時滿足庫存 < X 且 無訂單 才會被隱藏
+      // 如果只有其中一個勾選，且不滿足另一個？
+      // 這裡使用者預期的 AND 應該是：勾選的條件必須全部成立才隱藏
+      shouldHide = (filterConfig.checkInventory ? hideByInventory : true) &&
+                   (filterConfig.checkOrders ? hideByOrders : true)
+    }
+
+    if (shouldHide) {
+      inactive.push(child)
+    } else {
+      active.push(child)
+    }
+  }
+
+  // 加入不被隱藏的活躍節點
+  for (const child of active) {
+    const childNode = new TreeNode(child, parentNode)
+    childNode.hasChildren = true
+    childNode.childrenLoaded = false
+    parentNode.children.push(childNode)
+    nodeMap.set(child.node_path, childNode)
+  }
+
+  // 被隱藏節點 → 合併為群組節點
+  if (inactive.length > 0) {
+    const groupNode = new TreeNode(
+      { name: `+${inactive.length} 名其他會員`, member_no: '__group__', level: '' },
+      parentNode
+    )
+    groupNode.isGroupNode = true
+    groupNode.groupCount = inactive.length
+    groupNode.groupedMembers = inactive
+    groupNode.hasChildren = false
+    parentNode.children.push(groupNode)
   }
 }
 
@@ -381,7 +426,7 @@ async function drillInto(node) {
     const ancestors = await getAncestors(nodePath)
     const children = await getDirectChildren(nodePath)
 
-    buildTree(ancestors, member, children)
+    await buildTree(ancestors, member, children)
 
     // ③ 聚焦效果：讓披點擊節點的同層兄弟 dimmed
     applyFocusDimming(member.node_path)
@@ -459,14 +504,59 @@ function rerender() {
 }
 
 // ============================================================
-// 智慧篩選 Toggle
+// 隱藏條件選單 (Filter Dropdown)
 // ============================================================
-const btnFilterActive = document.getElementById('btnFilterActive')
-btnFilterActive?.addEventListener('click', () => {
-  filterActive = !filterActive
-  btnFilterActive.classList.toggle('active', filterActive)
+const btnFilterMenu = document.getElementById('btnFilterMenu')
+const filterDropdown = document.getElementById('filterDropdown')
+const btnApplyFilter = document.getElementById('btnApplyFilter')
+const chkFilterInventory = document.getElementById('chkFilterInventory')
+const numFilterInventory = document.getElementById('numFilterInventory')
+const chkFilterOrders = document.getElementById('chkFilterOrders')
+const radioFilterMatch = document.getElementsByName('filterMatch')
 
-  // 如果有當前會員，重新載入以套用篩選
+// Toggle dropdown
+btnFilterMenu?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  const isHidden = filterDropdown.style.display === 'none'
+  filterDropdown.style.display = isHidden ? 'flex' : 'none'
+  if (filterConfig.checkInventory || filterConfig.checkOrders) {
+    btnFilterMenu.classList.add('active')
+  } else {
+    btnFilterMenu.classList.remove('active')
+  }
+})
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.filter-dropdown-container')) {
+    filterDropdown.style.display = 'none'
+  }
+})
+
+filterDropdown?.addEventListener('click', (e) => {
+  e.stopPropagation() // 防止點擊選單內部時關閉
+})
+
+// 套用篩選
+btnApplyFilter?.addEventListener('click', () => {
+  filterConfig.checkInventory = chkFilterInventory.checked
+  filterConfig.inventoryMax = Number(numFilterInventory.value) || 1
+  filterConfig.checkOrders = chkFilterOrders.checked
+  
+  for (const radio of radioFilterMatch) {
+    if (radio.checked) filterConfig.matchType = radio.value
+  }
+
+  filterDropdown.style.display = 'none'
+
+  // Update button active state
+  if (filterConfig.checkInventory || filterConfig.checkOrders) {
+    btnFilterMenu.classList.add('active')
+  } else {
+    btnFilterMenu.classList.remove('active')
+  }
+
+  // 重新載入以套用新篩選（這會觸發 buildTree 和 appendChildNodes）
   if (currentMember) {
     selectMember(currentMember)
   }
@@ -518,9 +608,16 @@ document.getElementById('btnApplyDate').addEventListener('click', () => {
     alert('請選擇有效的日期區間')
     return
   }
+  
   if (currentMember) {
-    updateStats(currentMember.node_path)
+    // 如果有勾選「無訂單」隱藏條件，日期改變就需要重繪樹狀圖
+    if (filterConfig.checkOrders) {
+      selectMember(currentMember)
+    } else {
+      updateStats(currentMember.node_path)
+    }
   }
+  
   if (detailPanel.isOpen && detailPanel.currentMemberInfo) {
     detailPanel.show(detailPanel.currentMemberInfo, s, e)
   }
