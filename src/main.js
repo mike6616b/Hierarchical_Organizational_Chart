@@ -16,27 +16,27 @@ import { DetailPanel } from './components/detail-panel.js'
 const authLoading = document.getElementById('authLoading')
 const appEl = document.getElementById('app')
 
-;(() => {
-  const session = localStorage.getItem('org_chart_session')
-  let isLoggedIn = false
-  if (session) {
-    try {
-      const parsed = JSON.parse(session)
-      if (parsed && parsed.login_account) isLoggedIn = true
-    } catch {}
-  }
+  ; (() => {
+    const session = localStorage.getItem('org_chart_session')
+    let isLoggedIn = false
+    if (session) {
+      try {
+        const parsed = JSON.parse(session)
+        if (parsed && parsed.login_account) isLoggedIn = true
+      } catch { }
+    }
 
-  if (!isLoggedIn) {
-    // 未登入 → 直接跳轉，不會閃到主畫面
-    window.location.replace('./login.html')
-    return
-  }
+    if (!isLoggedIn) {
+      // 未登入 → 直接跳轉，不會閃到主畫面
+      window.location.replace('./login.html')
+      return
+    }
 
-  // 已登入 → 顯示主畫面
-  appEl.style.display = ''
-  authLoading.classList.add('fade-out')
-  setTimeout(() => authLoading.remove(), 300)
-})()
+    // 已登入 → 顯示主畫面
+    appEl.style.display = ''
+    authLoading.classList.add('fade-out')
+    setTimeout(() => authLoading.remove(), 300)
+  })()
 
 // Logout
 document.getElementById('btnLogout')?.addEventListener('click', () => {
@@ -107,12 +107,21 @@ searchInput.addEventListener('input', () => {
   btnClearSearch.style.display = val ? 'flex' : 'none'
 
   clearTimeout(searchTimer)
+
   if (!val) {
     hideSearchResults()
     return
   }
 
-  searchTimer = setTimeout(() => performSearch(val), 300)
+  // 🛡️ 前端防護：如果是純數字（查編號）就不限長度，否則中英文至少要 2 個字元
+  const isNumeric = /^\d+$/.test(val)
+  if (!isNumeric && val.length < 2) {
+    hideSearchResults()
+    return
+  }
+
+  // ⏳ 將防抖時間從 300ms 拉長到 500ms，對資料庫更友善，也不影響正常打字體驗
+  searchTimer = setTimeout(() => performSearch(val), 500)
 })
 
 searchInput.addEventListener('keydown', (e) => {
@@ -356,7 +365,7 @@ async function appendChildNodes(parentNode, children) {
       // 如果只有其中一個勾選，且不滿足另一個？
       // 這裡使用者預期的 AND 應該是：勾選的條件必須全部成立才隱藏
       shouldHide = (filterConfig.checkInventory ? hideByInventory : true) &&
-                   (filterConfig.checkOrders ? hideByOrders : true)
+        (filterConfig.checkOrders ? hideByOrders : true)
     }
 
     if (shouldHide) {
@@ -424,7 +433,7 @@ async function drillInto(node) {
 
   try {
     const nodePath = member.node_path
-    
+
     // 效能優化：直接從當前 TreeNode 往上找祖先，不需發送網路請求 (O(1) in-memory)
     const ancestors = []
     let curr = node.parent
@@ -433,7 +442,7 @@ async function drillInto(node) {
       curr = curr.parent
     }
     ancestors.reverse() // 確保順序由根向下
-    
+
     // 僅需查詢下線
     const children = await getDirectChildren(nodePath)
 
@@ -553,7 +562,7 @@ btnApplyFilter?.addEventListener('click', () => {
   filterConfig.checkInventory = chkFilterInventory.checked
   filterConfig.inventoryMax = Number(numFilterInventory.value) || 1
   filterConfig.checkOrders = chkFilterOrders.checked
-  
+
   for (const radio of radioFilterMatch) {
     if (radio.checked) filterConfig.matchType = radio.value
   }
@@ -623,7 +632,7 @@ document.getElementById('btnApplyDate').addEventListener('click', () => {
     alert('請選擇有效的日期區間')
     return
   }
-  
+
   if (currentMember) {
     // 如果有勾選「無訂單」隱藏條件，日期改變就需要重繪樹狀圖
     if (filterConfig.checkOrders) {
@@ -632,7 +641,7 @@ document.getElementById('btnApplyDate').addEventListener('click', () => {
       updateStats(currentMember.node_path)
     }
   }
-  
+
   if (detailPanel.isOpen && detailPanel.currentMemberInfo) {
     detailPanel.show(detailPanel.currentMemberInfo, s, e)
   }
@@ -711,10 +720,10 @@ function escapeHtml(str) {
 function animateNumber(elementId, endValue, duration = 800, prefix = '') {
   const el = document.getElementById(elementId)
   if (!el) return
-  
+
   const currentText = el.textContent.replace(/[^0-9.-]/g, '')
   const startValue = parseInt(currentText, 10) || 0
-  
+
   if (startValue === endValue) {
     el.textContent = prefix + endValue.toLocaleString()
     return

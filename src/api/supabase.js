@@ -16,7 +16,11 @@ export async function searchMember(keyword) {
   const kw = keyword.trim()
 
   // 如果是純數字，用會員編號精確搜 + 姓名/公司名稱模糊搜
+  // 🛡️ 防護機制：限制至少要輸入 2 個字元才開始搜尋（如果是數字則不限，方便搜編號）
   const isNumeric = /^\d+$/.test(kw)
+  if (!isNumeric && kw.length < 2) {
+    return []
+  }
 
   let query = supabase
     .from('members_public')
@@ -131,13 +135,13 @@ export async function getMemberTotalTransactions(memberNo, startDate, endDate) {
 
   const { data, error } = await query
   if (error) { console.error('Member tx error:', error); return { amount: 0, quantity: 0 } }
-  
+
   let amt = 0, qty = 0
   data.forEach(t => {
     amt += Number(t.amount) || 0
     qty += Number(t.quantity) || 0
   })
-  
+
   return { amount: amt, quantity: qty }
 }
 
