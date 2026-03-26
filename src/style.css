@@ -728,7 +728,7 @@ body {
   align-items: center;
   gap: 16px;
   flex: 1;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .dp-avatar {

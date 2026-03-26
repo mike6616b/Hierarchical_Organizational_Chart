@@ -150,10 +150,10 @@ export class DetailPanel {
 
     if (isPreview) {
       // ✅ 預覽狀態：檢查目前是否還能再釘選
-      if (this.pinnedMembers.length < 3) {
-        actionHtml = `<button class="btn-pin">📌 加入比較 (還可加 ${3 - this.pinnedMembers.length} 位)</button>`
+      if (this.pinnedMembers.length + 1 < 3) {
+        actionHtml = `<button class="btn-pin">📌 加入比較 (還可加 ${3 - (this.pinnedMembers.length + 1)} 位)</button>`
       } else {
-        // 如果已經 3 人滿了，就不顯示任何按鈕在 Preview 卡片上方
+        // 如果已經 3 人滿了 (例如已釘選 2 人，現在正在看第 3 人的預覽)，就不顯示任何按鈕
         actionHtml = `<div class="dp-column-header"></div>`
       }
     } else {
