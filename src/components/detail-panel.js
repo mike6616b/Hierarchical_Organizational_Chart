@@ -41,10 +41,10 @@ export class DetailPanel {
       return
     }
 
-    // 🛑 新增這段防護：如果畫面上已經釘選 3 人，就直接擋下，不顯示第 4 人的預覽
+    // 🛡️ 防護機制：限制最多只能同時比較 3 人 (含預覽)
     if (this.pinnedMembers.length >= 3) {
-      alert('畫面上最多只能同時比較 3 位會員喔！請先點擊「×」移除一位。')
-      return
+      alert('最多只能同時比較 3 位會員喔！請先點擊「×」移除一位。')
+      return // 直接回傳，不抓資料，也不更新 previewMember 狀態
     }
 
     // 如果沒有釘選也沒有預覽，顯示 Loading
@@ -145,13 +145,24 @@ export class DetailPanel {
 
     const levelColor = getLevelDotColor(m.level)
 
-    // 判斷按鈕類型 (預覽狀態顯示 Pin，釘選狀態顯示 Unpin)
-    const actionHtml = isPreview
-      ? `<button class="btn-pin">📌 加入比較 (還可加 ${3 - this.pinnedMembers.length} 位)</button>`
-      : `<div class="dp-column-header">
+    // 🛑 修正按鈕條件與人數判斷
+    let actionHtml = ''
+
+    if (isPreview) {
+      // ✅ 預覽狀態：檢查目前是否還能再釘選
+      if (this.pinnedMembers.length < 3) {
+        actionHtml = `<button class="btn-pin">📌 加入比較 (還可加 ${3 - this.pinnedMembers.length} 位)</button>`
+      } else {
+        // 如果已經 3 人滿了，就不顯示任何按鈕在 Preview 卡片上方
+        actionHtml = `<div class="dp-column-header"></div>`
+      }
+    } else {
+      // ✅ 已釘選狀態：顯示 Unpin 按鈕
+      actionHtml = `<div class="dp-column-header">
            <span></span>
            <button class="btn-unpin" data-no="${m.member_no}" title="移除">×</button>
          </div>`
+    }
 
     return `
       <div class="dp-column">
