@@ -573,7 +573,9 @@ body {
   top: 0;
   right: 0;
   bottom: 0;
-  width: 360px;
+  width: auto;
+  min-width: 360px;
+  max-width: 65vw;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -581,7 +583,7 @@ body {
   z-index: 50;
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease;
   border-left: 1px solid var(--border);
 }
 
@@ -606,8 +608,71 @@ body {
 
 .dp-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding: 24px 20px;
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.dp-column {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* 隱藏每個單獨 column 的 scrollbar 讓視覺更乾淨，保留滾動功能 */
+.dp-column::-webkit-scrollbar { width: 4px; }
+
+.dp-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.btn-unpin {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: var(--muted-light);
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.btn-unpin:hover {
+  color: var(--destructive);
+  background: var(--destructive-bg);
+}
+
+.btn-pin {
+  margin-bottom: 24px;
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1.5px dashed var(--primary-light);
+  border-radius: var(--radius);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-pin:hover {
+  background: var(--primary-bg);
+  border-color: var(--primary);
 }
 
 .blur-fade-in {
@@ -629,7 +694,8 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 32px;
+  flex: 1;
+  overflow: hidden;
 }
 
 .dp-avatar {

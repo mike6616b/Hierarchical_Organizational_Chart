@@ -88,51 +88,71 @@ function syncAllMembers() {
    2. 同步新訂單 (增量 Insert)
    ========================================= */
 function syncNewTransactions() {
+  // 1. 先抓取目前「所有合法的會員編號」以防外鍵衝突
+  const memSs = SpreadsheetApp.openById(MEMBERS_SHEET_ID);
+  const memSheet = memSs.getSheetByName('ref.會員資料');
+  if (!memSheet) throw new Error("找不到工作表：ref.會員資料");
+  const memData = memSheet.getDataRange().getValues();
+  const validMembers = new Set();
+  for (let i = 2; i < memData.length; i++) {
+    const mno = memData[i][1]?.toString().trim(); // 會員編號在 B 欄 (index 1)
+    if (mno) validMembers.add(mno);
+  }
+
+  // 2. 開始撈取訂單
   const ss = SpreadsheetApp.openById(TRANSACTIONS_SHEET_ID);
   const sheet = ss.getSheetByName('rawdata');
   if (!sheet) throw new Error("找不到工作表：rawdata");
 
   const data = sheet.getDataRange().getValues();
-  const props = PropertiesService.getScriptProperties();
-  
-  let lastSyncedRow = parseInt(props.getProperty('LAST_SYNCED_TX_ROW'));
-  
-  if (!lastSyncedRow) {
-    // 首次執行：如果前端已經用 Python 把先前的 24k 倒進去了，
-    // 以防重複寫入歷史訂單，這段將自動跳過所有舊有訂單，直接把目前最後一列當作同步起點！
-    lastSyncedRow = data.length;
-    props.setProperty('LAST_SYNCED_TX_ROW', lastSyncedRow.toString());
-    Logger.log("設定初始訂單同步進度為最後一列：" + lastSyncedRow + "。如有新訂單再來執行！");
-    return;
-  }
+  const windowDays = 9999;
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - windowDays);
+  cutoffDate.setHours(0, 0, 0, 0);
 
-  // 假設有新訂單加在最下方
   let newRecords = [];
-  for (let i = lastSyncedRow; i < data.length; i++) {
+  let invalidCount = 0;
+  // 跳過標題列，從 i=1 開始
+  for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const member_no = row[2]?.toString().trim(); // C欄 (index 2)
-    if (!member_no) continue;
     
-    newRecords.push({
-      member_no: member_no,
-      type: 'order',
-      amount: parseFloat(row[10]) || 0, // K欄 (index 10)
-      quantity: parseFloat(row[11]) || 0, // L欄 (index 11)
-      transaction_date: parseDate(row[17]) // R欄 (index 17)
-    });
+    const member_no = row[2]?.toString().trim(); // C欄 (index 2)
+    const order_id = row[1]?.toString().trim();  // B欄 (index 1)
+    
+    if (!member_no || !order_id) continue;
+    
+    // 🔥 防呆：如果在合法會員清單裡找不到這個人，就直接跳過（防止資料庫外鍵跳錯）
+    if (!validMembers.has(member_no)) {
+      invalidCount++;
+      continue;
+    }
+    
+    const txDateStr = parseDate(row[17]); // R欄 (index 17)
+    if (!txDateStr) continue;
+    
+    const txDate = new Date(txDateStr);
+    
+    // 只抓取最近 60 天內（目前暫改為 9999 天洗牌）的單
+    if (txDate >= cutoffDate) {
+      newRecords.push({
+        order_id: order_id,
+        member_no: member_no,
+        type: 'order',
+        amount: parseFloat(row[10]) || 0, // K欄 (index 10)
+        quantity: parseFloat(row[11]) || 0, // L欄 (index 11)
+        transaction_date: txDateStr
+      });
+    }
   }
 
   if (newRecords.length > 0) {
-    Logger.log(`發現 ${newRecords.length} 筆新訂單！準備上傳...`);
-    // 因為這筆資料是純新增沒有覆蓋，URL 比較單純
-    const url = SUPABASE_URL + '/rest/v1/transactions';
-    batchUpsert(url, newRecords, false); 
-    
-    // 更新紀錄點
-    props.setProperty('LAST_SYNCED_TX_ROW', data.length.toString());
-    Logger.log("🎉 訂單資料同步完成！");
+    Logger.log(`發現過去 ${windowDays} 天內共有 ${newRecords.length} 筆訂單！準備進行 Upsert...`);
+    const url = SUPABASE_URL + '/rest/v1/transactions?on_conflict=order_id';
+    // 預設 isUpsert = true，呼叫 batchUpsert 進行覆蓋寫入
+    batchUpsert(url, newRecords, true); 
+    Logger.log("🎉 訂單資料 Upsert 同步完成！");
   } else {
-    Logger.log("沒有發現新訂單。");
+    Logger.log(`沒有發現過去 ${windowDays} 天內的訂單。`);
   }
 }
 
