@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&family=Noto+Serif+TC:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./login.css" />
   <script type="importmap">
   {
     "imports": {
@@ -18,7 +19,15 @@
   </script>
 </head>
 <body>
-  <div id="app">
+  <!-- Auth Loading Overlay -->
+  <div class="auth-loading" id="authLoading">
+    <div class="auth-loading-content">
+      <div class="auth-loading-spinner"></div>
+      <div class="auth-loading-text">驗證身分中...</div>
+    </div>
+  </div>
+
+  <div id="app" style="display:none">
     <!-- Header -->
     <header class="app-header" id="appHeader">
       <div class="header-left">
@@ -50,6 +59,13 @@
           <input type="date" id="endDate" class="date-input" />
           <button id="btnApplyDate" class="btn btn-primary btn-sm">套用</button>
         </div>
+        <button id="btnLogout" class="btn-icon" title="登出" style="margin-left:8px;color:var(--muted);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
       </div>
     </header>
 

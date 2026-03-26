@@ -190,5 +190,19 @@ function parseDate(val) {
     const tz = SpreadsheetApp.getActive().getSpreadsheetTimeZone();
     return Utilities.formatDate(val, tz, "yyyy-MM-dd");
   }
-  return val.toString().split(' ')[0];
+  const s = val.toString().trim();
+  // 處理中文日期格式：1978年12月15日
+  const cnMatch = s.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+  if (cnMatch) {
+    const y = cnMatch[1];
+    const m = cnMatch[2].padStart(2, '0');
+    const d = cnMatch[3].padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  // 處理 "2026/01/15" 或 "2026-01-15 09:00:00"
+  const cleaned = s.replace(/\//g, '-').split(' ')[0];
+  if (cleaned.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+    return cleaned;
+  }
+  return null; // 無法解析就跳過，避免炸掉整批
 }
