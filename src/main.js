@@ -67,6 +67,9 @@ let treeCanvas = null      // TreeCanvas instance
 let currentMember = null   // 目前查詢的會員
 let searchTimer = null     // debounce timer
 let activeResultIdx = -1   // keyboard navigation
+let filterActive = false   // 智慧篩選 toggle
+let nodeMap = new Map()    // node_path -> TreeNode
+let allChildrenCache = new Map() // node_path -> raw children data (before filter)
 
 // ============================================================
 // Init
@@ -240,7 +243,7 @@ function buildTree(ancestors, targetMember, children) {
 
   // 建根節點（最頂層祖先）
   let root = null
-  const nodeMap = new Map()
+  nodeMap = new Map()
 
   // 建祖先節點
   for (const data of ancestorData) {
@@ -275,14 +278,11 @@ function buildTree(ancestors, targetMember, children) {
 
   if (!root) root = targetNode
 
-  // 建下線節點
-  for (const child of children) {
-    const childNode = new TreeNode(child, targetNode)
-    childNode.hasChildren = true  // 假設都可能有下線
-    childNode.childrenLoaded = false
-    targetNode.children.push(childNode)
-    nodeMap.set(child.node_path, childNode)
-  }
+  // 快取原始 children 資料
+  allChildrenCache.set(targetMember.node_path, children)
+
+  // 建下線節點（套用篩選）
+  appendChildNodes(targetNode, children)
 
   treeRoot = root
 
@@ -292,42 +292,150 @@ function buildTree(ancestors, targetMember, children) {
   treeCanvas.centerOnNode(targetNode)
 }
 
+/**
+ * 將 children 加入父節點，攝用篩選遏輯
+ */
+function appendChildNodes(parentNode, children) {
+  parentNode.children = []
+
+  if (filterActive) {
+    const active = []
+    const inactive = []
+    for (const child of children) {
+      const inv = Number(child.inventory) || 0
+      if (inv > 0) {
+        active.push(child)
+      } else {
+        inactive.push(child)
+      }
+    }
+
+    // 加入活躍節點
+    for (const child of active) {
+      const childNode = new TreeNode(child, parentNode)
+      childNode.hasChildren = true
+      childNode.childrenLoaded = false
+      parentNode.children.push(childNode)
+      nodeMap.set(child.node_path, childNode)
+    }
+
+    // 非活躍節點 → 合併為群組節點
+    if (inactive.length > 0) {
+      const groupNode = new TreeNode(
+        { name: `+${inactive.length} 名其他會員`, member_no: '__group__', level: '' },
+        parentNode
+      )
+      groupNode.isGroupNode = true
+      groupNode.groupCount = inactive.length
+      groupNode.groupedMembers = inactive
+      groupNode.hasChildren = false
+      parentNode.children.push(groupNode)
+    }
+  } else {
+    // 不篩選：全部顯示
+    for (const child of children) {
+      const childNode = new TreeNode(child, parentNode)
+      childNode.hasChildren = true
+      childNode.childrenLoaded = false
+      parentNode.children.push(childNode)
+      nodeMap.set(child.node_path, childNode)
+    }
+  }
+}
+
 // ============================================================
 // 節點互動
 // ============================================================
 async function handleNodeClick(node) {
   if (!node) return
 
-  if (node.expanded && node.childrenLoaded) {
-    // 收合
-    node.expanded = false
-    node.children = []
-    node.childrenLoaded = false
-    rerender()
+  // 群組節點：展開被隱藏的會員
+  if (node.isGroupNode) {
+    expandGroupNode(node)
     return
   }
 
-  if (!node.childrenLoaded) {
-    // Lazy load 下線
-    try {
-      const children = await getDirectChildren(node.data.node_path)
-      node.children = children.map(c => {
-        const child = new TreeNode(c, node)
-        child.hasChildren = true
-        return child
-      })
-      node.childrenLoaded = true
-      node.expanded = true
+  // 有子節點或可能有子節點 → 鑒取導航（重新以該節點為中心）
+  if (node.hasChildren || node.children.length > 0) {
+    drillInto(node)
+    return
+  }
 
-      if (children.length === 0) {
-        node.hasChildren = false
-      }
-    } catch (err) {
-      console.error('Load children error:', err)
-      return
+  // 葉子節點 → 顯示詳細面板
+  const start = startDateInput.value
+  const end = endDateInput.value
+  detailPanel.show(node.data, start, end)
+}
+
+/**
+ * 鑒取導航：以被點擊的節點為新中心重新載入樹
+ */
+async function drillInto(node) {
+  const member = node.data
+  currentMember = member
+  searchInput.value = member.name + (member.company_name ? ` (${member.company_name})` : '')
+  btnClearSearch.style.display = 'flex'
+
+  try {
+    const nodePath = member.node_path
+    const ancestors = await getAncestors(nodePath)
+    const children = await getDirectChildren(nodePath)
+
+    buildTree(ancestors, member, children)
+
+    // ③ 聚焦效果：讓披點擊節點的同層兄弟 dimmed
+    applyFocusDimming(member.node_path)
+
+    updateStats(nodePath)
+    updateBreadcrumb(ancestors, member)
+  } catch (err) {
+    console.error('Drill-in error:', err)
+  }
+}
+
+/**
+ * 展開群組節點：將被隱藏的會員加回樹中
+ */
+function expandGroupNode(groupNode) {
+  const parent = groupNode.parent
+  if (!parent) return
+
+  // 移除群組節點
+  parent.children = parent.children.filter(c => c !== groupNode)
+
+  // 加回被隱藏的會員
+  for (const child of groupNode.groupedMembers) {
+    const childNode = new TreeNode(child, parent)
+    childNode.hasChildren = true
+    childNode.childrenLoaded = false
+    childNode.dimmed = true // 稍微 dimmed 以區分原本就顯示的
+    parent.children.push(childNode)
+    nodeMap.set(child.node_path, childNode)
+  }
+
+  rerender()
+}
+
+/**
+ * ③ 聚焦效果：被點擊節點的同層兄弟降低透明度
+ */
+function applyFocusDimming(focusedPath) {
+  if (!treeRoot) return
+
+  const allNodes = [treeRoot, ...treeRoot.getVisibleDescendants()]
+  const focusedNode = nodeMap.get(focusedPath)
+  if (!focusedNode) return
+
+  // 找出焦點節點的父節點
+  const parent = focusedNode.parent
+
+  for (const node of allNodes) {
+    // 同層兄弟（同一個 parent 但不是自己） → dimmed
+    if (parent && node.parent === parent && node !== focusedNode) {
+      node.dimmed = true
+    } else {
+      node.dimmed = false
     }
-  } else {
-    node.expanded = !node.expanded
   }
 
   rerender()
@@ -349,6 +457,21 @@ function rerender() {
   const layout = computeLayout(treeRoot)
   treeCanvas.setData(layout.nodes, layout.links, layout.bounds)
 }
+
+// ============================================================
+// 智慧篩選 Toggle
+// ============================================================
+const btnFilterActive = document.getElementById('btnFilterActive')
+btnFilterActive?.addEventListener('click', () => {
+  filterActive = !filterActive
+  btnFilterActive.classList.toggle('active', filterActive)
+
+  // 如果有當前會員，重新載入以套用篩選
+  if (currentMember) {
+    selectMember(currentMember)
+  }
+})
+
 
 // ============================================================
 // 統計

@@ -32,6 +32,12 @@ export class TreeNode {
     this.visible = true
     this.highlighted = false
     this.hovered = false
+    this.dimmed = false  // 聚焦效果：是否降低透明度
+
+    // 群組節點（智慧篩選用）
+    this.isGroupNode = false
+    this.groupCount = 0
+    this.groupedMembers = [] // 被隱藏的會員資料
   }
 
   get isLeaf() {

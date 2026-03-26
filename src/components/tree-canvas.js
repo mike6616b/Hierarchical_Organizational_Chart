@@ -31,6 +31,7 @@ export class TreeCanvas {
     this.dragOffsetY = 0
     this.hoveredNode = null
     this.selectedNode = null
+    this.focusedNode = null // 鑒取導航：當前聚焦的節點
 
     // Callbacks
     this.onNodeClick = onNodeClick || (() => {})
@@ -374,7 +375,11 @@ export class TreeCanvas {
 
   _drawNodes(ctx) {
     for (const node of this.nodes) {
-      this._drawNode(ctx, node)
+      if (node.isGroupNode) {
+        this._drawGroupNode(ctx, node)
+      } else {
+        this._drawNode(ctx, node)
+      }
     }
   }
 
@@ -388,8 +393,14 @@ export class TreeCanvas {
     const isHigh = isHighPerformer(node.data)
     const isHovered = node === this.hoveredNode
     const isSelected = node === this.selectedNode
+    const isDimmed = node.dimmed
 
     ctx.save()
+
+    // 聚焦效果：降低透明度
+    if (isDimmed) {
+      ctx.globalAlpha = 0.3
+    }
 
     // ---- Shadow ----
     if (isHovered || isSelected) {
@@ -521,6 +532,50 @@ export class TreeCanvas {
         ctx.lineTo(iconX + 3, iconY - 1)
       }
       ctx.fill()
+    }
+
+    ctx.restore()
+  }
+
+  /** 繪製群組節點（"+N 名其他會員"） */
+  _drawGroupNode(ctx, node) {
+    const x = node.x - node.width / 2
+    const y = node.y
+    const w = node.width
+    const h = node.height
+    const r = 16
+    const isHovered = node === this.hoveredNode
+
+    ctx.save()
+
+    // Dashed border, muted style
+    ctx.setLineDash([4, 4])
+    ctx.strokeStyle = isHovered ? '#93C5FD' : '#CBD5E1'
+    ctx.lineWidth = 1.5
+    ctx.fillStyle = isHovered ? '#F8FAFC' : '#F1F5F9'
+    this._roundRect(ctx, x, y, w, h, r)
+    ctx.fill()
+    this._roundRect(ctx, x, y, w, h, r)
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    // "+N" text
+    ctx.fillStyle = isHovered ? '#3B82F6' : '#94A3B8'
+    ctx.font = `700 16px ${FONT_BODY}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(`+${node.groupCount}`, x + w / 2, y + h / 2 - 8)
+
+    // Label
+    ctx.fillStyle = '#94A3B8'
+    ctx.font = `400 10px ${FONT_BODY}`
+    ctx.fillText('其他會員', x + w / 2, y + h / 2 + 10)
+
+    // Hover hint
+    if (isHovered) {
+      ctx.fillStyle = '#3B82F6'
+      ctx.font = `500 9px ${FONT_BODY}`
+      ctx.fillText('點擊展開', x + w / 2, y + h / 2 + 24)
     }
 
     ctx.restore()

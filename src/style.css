@@ -34,10 +34,9 @@
   --level-general: #6B7280;
   --highlight-high: #F59E0B;
 
-  /* 字體 */
-  /* 字體 */
-  --font-heading: 'Styrene', 'Noto Sans TC', 'Inter', system-ui, sans-serif;
-  --font-body: 'Tiempos Text', 'Noto Serif TC', Georgia, serif;
+  /* 字體 (思源黑體為主) */
+  --font-heading: 'Noto Sans TC', 'Inter', system-ui, sans-serif;
+  --font-body: 'Noto Sans TC', 'Inter', system-ui, sans-serif;
   --font-mono: 'SF Mono', 'Fira Code', monospace;
 
   /* 圓角 */
@@ -714,4 +713,37 @@ body {
   border-radius: 8px;
   font-size: 13px;
   text-align: center;
+}
+
+/* --- Filter Toggle --- */
+.btn-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.btn-filter:hover {
+  border-color: var(--primary-lighter);
+  color: var(--primary);
+}
+
+.btn-filter.active {
+  background: var(--primary-bg);
+  border-color: var(--primary-light);
+  color: var(--primary);
+}
+
+.btn-filter.active svg {
+  fill: var(--primary-light);
 }
