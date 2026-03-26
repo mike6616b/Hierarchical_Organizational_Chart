@@ -64,8 +64,8 @@ export class DetailPanel {
 
   // 加入比較 (Pin)
   pinPreview() {
-    if (this.pinnedMembers.length >= 4) {
-      alert('最多只能同時比較 4 位會員喔！')
+    if (this.pinnedMembers.length >= 3) {
+      alert('最多只能同時比較 3 位會員喔！')
       return
     }
     if (this.previewMember) {
@@ -141,7 +141,7 @@ export class DetailPanel {
 
     // 判斷按鈕類型 (預覽狀態顯示 Pin，釘選狀態顯示 Unpin)
     const actionHtml = isPreview
-      ? `<button class="btn-pin">📌 加入比較 (還可加 ${4 - this.pinnedMembers.length} 位)</button>`
+      ? `<button class="btn-pin">📌 加入比較 (還可加 ${3 - this.pinnedMembers.length} 位)</button>`
       : `<div class="dp-column-header">
            <span></span>
            <button class="btn-unpin" data-no="${m.member_no}" title="移除">×</button>
