@@ -747,7 +747,7 @@ body {
 
 .dp-name-group {
   flex: 1;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .dp-name {

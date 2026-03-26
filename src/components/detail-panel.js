@@ -41,6 +41,12 @@ export class DetailPanel {
       return
     }
 
+    // 🛑 新增這段防護：如果畫面上已經釘選 3 人，就直接擋下，不顯示第 4 人的預覽
+    if (this.pinnedMembers.length >= 3) {
+      alert('畫面上最多只能同時比較 3 位會員喔！請先點擊「×」移除一位。')
+      return
+    }
+
     // 如果沒有釘選也沒有預覽，顯示 Loading
     if (this.pinnedMembers.length === 0) {
       this.contentEl.style.display = 'none'
