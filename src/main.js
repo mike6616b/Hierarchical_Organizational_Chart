@@ -211,12 +211,13 @@ async function selectMember(member) {
   showTreeUI()
 
   try {
-    // 1. 取祖先鏈
     const nodePath = member.node_path
-    const ancestors = await getAncestors(nodePath)
 
-    // 2. 取直接下線
-    const children = await getDirectChildren(nodePath)
+    // 1 & 2. 並發取祖先鏈與直接下線
+    const [ancestors, children] = await Promise.all([
+      getAncestors(nodePath),
+      getDirectChildren(nodePath)
+    ])
 
     // 3. 建構樹
     await buildTree(ancestors, member, children)
@@ -423,7 +424,17 @@ async function drillInto(node) {
 
   try {
     const nodePath = member.node_path
-    const ancestors = await getAncestors(nodePath)
+    
+    // 效能優化：直接從當前 TreeNode 往上找祖先，不需發送網路請求 (O(1) in-memory)
+    const ancestors = []
+    let curr = node.parent
+    while (curr) {
+      ancestors.push(curr.data)
+      curr = curr.parent
+    }
+    ancestors.reverse() // 確保順序由根向下
+    
+    // 僅需查詢下線
     const children = await getDirectChildren(nodePath)
 
     await buildTree(ancestors, member, children)
@@ -577,14 +588,18 @@ async function updateStats(nodePath) {
     document.getElementById('statPickup').textContent = '...'
     document.getElementById('statHighPerf').textContent = '...'
 
-    const result = await getSubtreeStats(nodePath, start, end)
+    // 利用 Promise.all 同時發起兩個統計查詢
+    const [result, txResult] = await Promise.all([
+      getSubtreeStats(nodePath, start, end),
+      getSubtreeTransactionStats(nodePath, start, end)
+    ])
+
     if (Array.isArray(result) && result[0]) {
       const s = result[0]
       document.getElementById('statMembers').textContent = (s.total_members || 0).toLocaleString()
       document.getElementById('statHighPerf').textContent = (s.total_high_performers || 0).toLocaleString()
     }
 
-    const txResult = await getSubtreeTransactionStats(nodePath, start, end)
     if (txResult) {
       document.getElementById('statOrders').textContent = '$' + (txResult.total_amount || 0).toLocaleString()
       document.getElementById('statPickup').textContent = (txResult.total_quantity || 0).toLocaleString()
