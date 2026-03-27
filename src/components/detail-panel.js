@@ -1,19 +1,26 @@
 import { getMemberDetail, getMemberTotalTransactions } from '../api/supabase.js'
 import { getLevelDotColor } from '../utils/colors.js'
 
+const MAX_COMPARE_MEMBERS = 3
+
 export class DetailPanel {
-  constructor(el, closeBtn, contentEl, loadingEl) {
+  constructor(el, closeBtn, contentEl, loadingEl, compareBtn, compareMetaEl) {
     this.el = el
     this.closeBtn = closeBtn
     this.contentEl = contentEl
     this.loadingEl = loadingEl
+    this.compareBtn = compareBtn
+    this.compareMetaEl = compareMetaEl
     this.isOpen = false
+    this.currentMemberInfo = null
+    this.lastDateRange = { startDate: '', endDate: '' }
 
-    // 狀態管理
-    this.pinnedMembers = [] // 儲存已釘選的會員資料 { info, detail, tx }
-    this.previewMember = null // 儲存當前點擊（預覽中）的會員資料
+    this.pinnedMembers = []
+    this.previewMember = null
 
     this.closeBtn.addEventListener('click', () => this.hide())
+    this.compareBtn?.addEventListener('click', () => this.pinPreview())
+    this.updateHeaderState()
   }
 
   escapeHtml(str) {
@@ -26,149 +33,237 @@ export class DetailPanel {
     return dateStr.split('T')[0]
   }
 
-  // 外部呼叫：當點擊架構圖節點時觸發
-  async show(memberInfo, startDate, endDate) {
-    this.isOpen = true
-    this.el.style.transform = 'translateX(0)'
+  getCompareCount() {
+    return this.pinnedMembers.length
+  }
 
-    // 檢查是否已經在釘選名單中
-    const isAlreadyPinned = this.pinnedMembers.some(m => m.info.member_no === memberInfo.member_no)
+  getCanPinPreview() {
+    return Boolean(this.previewMember) && this.pinnedMembers.length < MAX_COMPARE_MEMBERS - 1
+  }
 
-    if (isAlreadyPinned) {
-      // 如果已經釘選了，清空預覽區塊並直接重新渲染
-      this.previewMember = null
-      this.render()
-      return
+  updateHeaderState() {
+    if (!this.compareMetaEl || !this.compareBtn) return
+
+    const compareCount = this.getCompareCount()
+    const canPinPreview = this.getCanPinPreview()
+    const remaining = Math.max(MAX_COMPARE_MEMBERS - compareCount, 0)
+
+    if (this.previewMember) {
+      if (canPinPreview) {
+        this.compareMetaEl.textContent = `已比較 ${compareCount} / ${MAX_COMPARE_MEMBERS}，還可加入 ${remaining - 1} 位`
+      } else {
+        this.compareMetaEl.textContent = `已比較 ${compareCount} / ${MAX_COMPARE_MEMBERS}`
+      }
+    } else if (compareCount > 0) {
+      this.compareMetaEl.textContent = `已比較 ${compareCount} / ${MAX_COMPARE_MEMBERS}`
+    } else {
+      this.compareMetaEl.textContent = '尚未加入比較'
     }
 
-    // 🛡️ 防護機制：限制最多只能同時比較 3 人 (含預覽)
-    if (this.pinnedMembers.length >= 3) {
-      alert('最多只能同時比較 3 位會員喔！請先點擊「×」移除一位。')
-      return // 直接回傳，不抓資料，也不更新 previewMember 狀態
-    }
+    this.compareBtn.disabled = !canPinPreview
+  }
 
-    // 如果沒有釘選也沒有預覽，顯示 Loading
-    if (this.pinnedMembers.length === 0) {
-      this.contentEl.style.display = 'none'
-      this.loadingEl.style.display = 'flex'
-    }
-
-    // 只抓取「新點擊(預覽)」這位會員的資料
+  async loadMemberBundle(memberInfo, startDate, endDate) {
     const [detail, tx] = await Promise.all([
       getMemberDetail(memberInfo.member_no),
       getMemberTotalTransactions(memberInfo.member_no, startDate, endDate)
     ])
 
+    return { info: memberInfo, detail, tx }
+  }
+
+  async show(memberInfo, startDate, endDate) {
+    this.isOpen = true
+    this.currentMemberInfo = memberInfo
+    this.lastDateRange = { startDate, endDate }
+    this.el.style.transform = 'translateX(0)'
+
+    const isAlreadyPinned = this.pinnedMembers.some(m => m.info.member_no === memberInfo.member_no)
+
+    if (isAlreadyPinned) {
+      this.previewMember = null
+      this.updateHeaderState()
+      this.render()
+      return
+    }
+
+    if (this.pinnedMembers.length >= MAX_COMPARE_MEMBERS) {
+      alert('最多只能同時比較 3 位會員喔！請先點擊「×」移除一位。')
+      return
+    }
+
+    if (this.pinnedMembers.length === 0) {
+      this.contentEl.style.display = 'none'
+      this.loadingEl.style.display = 'flex'
+    }
+
+    const memberBundle = await this.loadMemberBundle(memberInfo, startDate, endDate)
+
     this.loadingEl.style.display = 'none'
-    this.contentEl.style.display = 'flex' // 配合 style.css 的多欄 Flex 排版
-
-    // 設定為預覽會員
-    this.previewMember = { info: memberInfo, detail, tx }
-
+    this.contentEl.style.display = 'flex'
+    this.previewMember = memberBundle
+    this.updateHeaderState()
     this.render()
   }
 
-  // 加入比較 (Pin)
+  async refresh(startDate, endDate) {
+    if (!this.isOpen) return
+
+    this.lastDateRange = { startDate, endDate }
+    this.loadingEl.style.display = 'flex'
+    this.contentEl.style.display = 'none'
+
+    const refreshedPinned = await Promise.all(
+      this.pinnedMembers.map(member => this.loadMemberBundle(member.info, startDate, endDate))
+    )
+
+    const refreshedPreview = this.previewMember
+      ? await this.loadMemberBundle(this.previewMember.info, startDate, endDate)
+      : null
+
+    this.pinnedMembers = refreshedPinned
+    this.previewMember = refreshedPreview
+    this.loadingEl.style.display = 'none'
+    this.contentEl.style.display = 'flex'
+    this.updateHeaderState()
+    this.render()
+  }
+
   pinPreview() {
-    if (this.pinnedMembers.length >= 3) {
+    if (!this.previewMember) return
+    if (this.pinnedMembers.length >= MAX_COMPARE_MEMBERS - 1) {
       alert('最多只能同時比較 3 位會員喔！')
       return
     }
-    if (this.previewMember) {
-      this.pinnedMembers.push(this.previewMember)
-      this.previewMember = null
-      this.render()
-    }
+
+    this.pinnedMembers.push(this.previewMember)
+    this.previewMember = null
+    this.updateHeaderState()
+    this.render()
   }
 
-  // 移除比較 (Unpin)
   unpin(memberNo) {
     this.pinnedMembers = this.pinnedMembers.filter(m => m.info.member_no !== memberNo)
 
-    // 如果全部清空了，且沒有預覽會員，就關閉側邊欄
     if (this.pinnedMembers.length === 0 && !this.previewMember) {
       this.hide()
-    } else {
-      this.render()
+      return
     }
+
+    this.updateHeaderState()
+    this.render()
   }
 
-  // 負責將狀態渲染到 DOM
+  toggleSection(sectionId) {
+    const toggle = this.contentEl.querySelector(`.dp-section-toggle[data-section="${sectionId}"]`)
+    const body = this.contentEl.querySelector(`.dp-section-body[data-section="${sectionId}"]`)
+
+    if (!toggle || !body) return
+
+    const expanded = toggle.getAttribute('aria-expanded') === 'true'
+    toggle.setAttribute('aria-expanded', String(!expanded))
+    body.hidden = expanded
+  }
+
   render() {
     this.contentEl.innerHTML = ''
+    this.updateHeaderState()
 
-    // 觸發 Blur Fade In 動畫
     this.contentEl.classList.remove('blur-fade-in')
-    void this.contentEl.offsetWidth // Trigger reflow
+    void this.contentEl.offsetWidth
     this.contentEl.classList.add('blur-fade-in')
 
-    let html = ''
+    const compareItems = [...this.pinnedMembers]
+    if (this.previewMember) compareItems.push(this.previewMember)
 
-    // 1. 渲染已釘選的會員卡片
-    this.pinnedMembers.forEach(m => {
-      html += this.generateColumnHtml(m, false)
-    })
+    this.el.style.setProperty('--dp-columns', String(Math.max(compareItems.length, 1)))
+    this.contentEl.innerHTML = compareItems
+      .map((member, index) => this.generateColumnHtml(member, this.previewMember?.info.member_no === member.info.member_no, index))
+      .join('')
 
-    // 2. 渲染預覽中的會員卡片 (放在最右邊)
-    if (this.previewMember) {
-      html += this.generateColumnHtml(this.previewMember, true)
-    }
-
-    this.contentEl.innerHTML = html
-
-    // 3. 綁定按鈕事件
-    const pinBtn = this.contentEl.querySelector('.btn-pin')
-    if (pinBtn) {
-      pinBtn.addEventListener('click', () => this.pinPreview())
-    }
-
-    const unpinBtns = this.contentEl.querySelectorAll('.btn-unpin')
-    unpinBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    this.contentEl.querySelectorAll('.btn-unpin').forEach(btn => {
+      btn.addEventListener('click', e => {
         const no = e.currentTarget.dataset.no
         this.unpin(no)
       })
     })
+
+    this.contentEl.querySelectorAll('.dp-section-toggle').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const sectionId = e.currentTarget.dataset.section
+        this.toggleSection(sectionId)
+      })
+    })
   }
 
-  // 產生單一會員直行的 HTML
-  generateColumnHtml(data, isPreview) {
+  generateMetricCard(label, value, tone = 'default') {
+    return `
+      <div class="dp-metric-card ${tone === 'primary' ? 'is-primary' : ''}">
+        <div class="dp-metric-label">${label}</div>
+        <div class="dp-metric-value">${value}</div>
+      </div>
+    `
+  }
+
+  generateInfoItem(label, value, isFull = false) {
+    return `
+      <div class="dp-item${isFull ? ' dp-full' : ''}">
+        <div class="dp-label">${label}</div>
+        <div class="dp-value">${value}</div>
+      </div>
+    `
+  }
+
+  generateSection(sectionId, title, content, collapsed = false) {
+    return `
+      <section class="dp-section ${collapsed ? 'is-collapsed' : ''}">
+        <button class="dp-section-toggle" type="button" data-section="${sectionId}" aria-expanded="${collapsed ? 'false' : 'true'}">
+          <span>${title}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
+        </button>
+        <div class="dp-section-body" data-section="${sectionId}"${collapsed ? ' hidden' : ''}>
+          ${content}
+        </div>
+      </section>
+    `
+  }
+
+  generateColumnHtml(data, isPreview, index) {
     const { detail: m, tx } = data
 
     if (!m) {
       return `
-        <div class="dp-column">
+        <article class="dp-column">
           <div class="error-msg">無法讀取資料，請確認權限或網路連線。</div>
-        </div>
+        </article>
       `
     }
 
     const levelColor = getLevelDotColor(m.level)
-
-    // 🛑 修正按鈕條件與人數判斷
-    let actionHtml = ''
-
-    if (isPreview) {
-      // ✅ 預覽狀態：檢查目前是否還能再釘選
-      if (this.pinnedMembers.length + 1 < 3) {
-        actionHtml = `<button class="btn-pin">📌 加入比較 (還可加 ${3 - (this.pinnedMembers.length + 1)} 位)</button>`
-      } else {
-        // 如果已經 3 人滿了 (例如已釘選 2 人，現在正在看第 3 人的預覽)，就不顯示任何按鈕
-        actionHtml = `<div class="dp-column-header"></div>`
-      }
-    } else {
-      // ✅ 已釘選狀態：顯示 Unpin 按鈕
-      actionHtml = `<div class="dp-column-header">
-           <span></span>
-           <button class="btn-unpin" data-no="${m.member_no}" title="移除">×</button>
-         </div>`
-    }
+    const sectionPrefix = `${m.member_no}-${index}`
+    const statusBadge = isPreview
+      ? `<span class="dp-status-badge is-preview">預覽中</span>`
+      : `<span class="dp-status-badge">比較中</span>`
+    const removeButton = !isPreview
+      ? `
+          <button class="btn-unpin" data-no="${m.member_no}" title="移除比較" aria-label="移除 ${this.escapeHtml(m.name)}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        `
+      : ''
 
     return `
-      <div class="dp-column">
-        ${actionHtml}
-        
-        <div class="dp-profile" style="margin-bottom: 24px;">
+      <article class="dp-column${isPreview ? ' is-preview' : ''}">
+        <div class="dp-column-topbar">
+          ${statusBadge}
+          ${removeButton}
+        </div>
+
+        <div class="dp-profile">
           <div class="dp-avatar" style="border-color: ${levelColor}">
             ${this.escapeHtml(m.name).charAt(0)}
           </div>
@@ -181,72 +276,49 @@ export class DetailPanel {
             </div>
           </div>
         </div>
-        
-        <div class="dp-section">
-          <h4 class="dp-section-title">帳號資訊</h4>
-          <div class="dp-grid">
-            <div class="dp-item">
-              <div class="dp-label">會員編號</div>
-              <div class="dp-value">${this.escapeHtml(m.member_no)}</div>
-            </div>
-            <div class="dp-item">
-              <div class="dp-label">目前庫存</div>
-              <div class="dp-value highlight">${this.escapeHtml(m.inventory)}</div>
-            </div>
-            <div class="dp-item">
-              <div class="dp-label">推薦人編號</div>
-              <div class="dp-value">${this.escapeHtml(m.inviter_no)}</div>
-            </div>
-            <div class="dp-item">
-              <div class="dp-label">註冊日期</div>
-              <div class="dp-value">${this.formatDate(m.registered_at)}</div>
-            </div>
-          </div>
+
+        <div class="dp-metrics">
+          ${this.generateMetricCard('目前庫存', this.escapeHtml(m.inventory), 'primary')}
+          ${this.generateMetricCard('總訂單金額', `$${this.escapeHtml(tx.amount.toLocaleString())}`)}
+          ${this.generateMetricCard('總訂單數量', this.escapeHtml(tx.quantity.toLocaleString()))}
         </div>
 
-        <div class="dp-section">
-          <h4 class="dp-section-title">個人資料</h4>
-          <div class="dp-grid">
-            <div class="dp-item">
-              <div class="dp-label">國籍</div>
-              <div class="dp-value">${this.escapeHtml(m.nationality)}</div>
+        ${this.generateSection(
+          `${sectionPrefix}-account`,
+          '帳號資訊',
+          `
+            <div class="dp-grid">
+              ${this.generateInfoItem('會員編號', this.escapeHtml(m.member_no))}
+              ${this.generateInfoItem('推薦人編號', this.escapeHtml(m.inviter_no))}
+              ${this.generateInfoItem('註冊日期', this.formatDate(m.registered_at))}
+              ${this.generateInfoItem('國籍', this.escapeHtml(m.nationality))}
             </div>
-            <div class="dp-item">
-              <div class="dp-label">生日</div>
-              <div class="dp-value">${this.formatDate(m.birthday)}</div>
-            </div>
-            <div class="dp-item dp-full">
-              <div class="dp-label">手機號碼</div>
-              <div class="dp-value">${this.escapeHtml(m.phone)}</div>
-            </div>
-            <div class="dp-item dp-full">
-              <div class="dp-label">電子郵件</div>
-              <div class="dp-value">${this.escapeHtml(m.email)}</div>
-            </div>
-          </div>
-        </div>
+          `
+        )}
 
-        <div class="dp-section">
-          <h4 class="dp-section-title">歷史交易總計</h4>
-          <div class="dp-grid">
-            <div class="dp-item">
-              <div class="dp-label">總訂單金額</div>
-              <div class="dp-value highlight">$${this.escapeHtml(tx.amount.toLocaleString())}</div>
+        ${this.generateSection(
+          `${sectionPrefix}-personal`,
+          '個人資料',
+          `
+            <div class="dp-grid">
+              ${this.generateInfoItem('生日', this.formatDate(m.birthday))}
+              ${this.generateInfoItem('手機號碼', this.escapeHtml(m.phone), true)}
+              ${this.generateInfoItem('電子郵件', this.escapeHtml(m.email), true)}
             </div>
-            <div class="dp-item">
-              <div class="dp-label">總訂單數量</div>
-              <div class="dp-value highlight">${this.escapeHtml(tx.quantity.toLocaleString())}</div>
-            </div>
-          </div>
-        </div>
-      </div>
+          `,
+          true
+        )}
+      </article>
     `
   }
 
   hide() {
     this.isOpen = false
-    this.el.style.transform = 'translateX(100%)'
-    // 關閉時清空預覽狀態，下次打開才是乾淨的
+    this.currentMemberInfo = null
     this.previewMember = null
+    this.pinnedMembers = []
+    this.contentEl.innerHTML = ''
+    this.updateHeaderState()
+    this.el.style.transform = 'translateX(100%)'
   }
 }

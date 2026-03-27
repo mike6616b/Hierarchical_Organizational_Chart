@@ -173,10 +173,21 @@
       <!-- Detail Panel (Slide from Right) -->
       <aside class="detail-panel" id="detailPanel" style="transform: translateX(100%);">
         <div class="dp-header">
-          <h2 class="dp-title">會員詳細資料</h2>
-          <button class="btn-icon dp-close" id="btnDetailClose" title="關閉">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
+          <div class="dp-header-copy">
+            <h2 class="dp-title">會員詳細資料</h2>
+            <div class="dp-subtitle" id="dpCompareMeta">尚未加入比較</div>
+          </div>
+          <div class="dp-header-actions">
+            <button class="btn dp-compare-btn" id="btnDetailCompare" type="button" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+              <span>加入比較</span>
+            </button>
+            <button class="btn-icon dp-close" id="btnDetailClose" title="關閉">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
         </div>
         <div class="dp-content" id="dpContent">
           <!-- Dynamically populated -->

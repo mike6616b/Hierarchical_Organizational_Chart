@@ -89,7 +89,9 @@ const detailPanel = new DetailPanel(
   document.getElementById('detailPanel'),
   document.getElementById('btnDetailClose'),
   document.getElementById('dpContent'),
-  document.getElementById('dpLoading')
+  document.getElementById('dpLoading'),
+  document.getElementById('btnDetailCompare'),
+  document.getElementById('dpCompareMeta')
 )
 
 // 預設日期範圍：今年
@@ -642,8 +644,8 @@ document.getElementById('btnApplyDate').addEventListener('click', () => {
     }
   }
 
-  if (detailPanel.isOpen && detailPanel.currentMemberInfo) {
-    detailPanel.show(detailPanel.currentMemberInfo, s, e)
+  if (detailPanel.isOpen) {
+    detailPanel.refresh(s, e)
   }
 })
 

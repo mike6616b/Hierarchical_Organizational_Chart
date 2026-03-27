@@ -1,5 +1,6 @@
 # Node environment
 node_modules/
+dist/
 .env
 
 # Raw data (Too large for Git / PII concern)
