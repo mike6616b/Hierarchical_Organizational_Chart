@@ -14,3 +14,5 @@ _agent/
 _agents/
 .gemini/
 /tmp/
+__pycache__/
+*.pyc
