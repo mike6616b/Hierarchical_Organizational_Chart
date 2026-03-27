@@ -5,7 +5,7 @@ import datetime
 import re
 
 XLSX_PATH = '訂貨資料_DB.xlsx'
-JSON_OUT = 'src/transactions.json'
+JSON_OUT = 'private-data/transactions.json'
 
 def parse_excel_date(val):
     if not val:
@@ -40,7 +40,7 @@ def extract_orders():
     # 0. Load valid members from members.json to prevent Foreign Key errors
     valid_members = set()
     try:
-        with open('src/members.json', 'r', encoding='utf-8') as f:
+        with open('private-data/members.json', 'r', encoding='utf-8') as f:
             for m in json.load(f):
                 valid_members.add(m.get('member_no'))
         print(f"Loaded {len(valid_members)} valid members for FK validation.")

@@ -3,7 +3,7 @@
  * Entry point: Auth Check → 搜尋 → 載入 → 渲染
  */
 
-import { searchMember, getAncestors, getDirectChildren, getSubtreeStats, getSubtreeTransactionStats, getMembersWithOrders } from './api/supabase.js'
+import { searchMember, getAncestors, getDirectChildren, getSubtreeStats, getSubtreeTransactionStats, getMembersWithOrders, getSession, signOut as signOutAuth } from './api/supabase.js'
 import { TreeCanvas } from './components/tree-canvas.js'
 import { TreeNode, computeLayout } from './utils/tree-layout.js'
 import { getLevelDotColor } from './utils/colors.js'
@@ -11,36 +11,35 @@ import { sanitizeSearchInput, isValidDate, validateDateRange } from './utils/san
 import { DetailPanel } from './components/detail-panel.js'
 
 // ============================================================
-// Auth Gate (Table-based, localStorage session)
+// Auth Gate (Supabase Auth session)
 // ============================================================
 const authLoading = document.getElementById('authLoading')
 const appEl = document.getElementById('app')
 
-  ; (() => {
-    const session = localStorage.getItem('org_chart_session')
-    let isLoggedIn = false
-    if (session) {
-      try {
-        const parsed = JSON.parse(session)
-        if (parsed && parsed.login_account) isLoggedIn = true
-      } catch { }
-    }
+  ; (async () => {
+    try {
+      const session = await getSession()
+      if (!session?.user) {
+        window.location.replace('./login.html')
+        return
+      }
 
-    if (!isLoggedIn) {
-      // 未登入 → 直接跳轉，不會閃到主畫面
+      appEl.style.display = ''
+      authLoading.classList.add('fade-out')
+      setTimeout(() => authLoading.remove(), 300)
+    } catch (error) {
+      console.error('Auth bootstrap error:', error)
       window.location.replace('./login.html')
-      return
     }
-
-    // 已登入 → 顯示主畫面
-    appEl.style.display = ''
-    authLoading.classList.add('fade-out')
-    setTimeout(() => authLoading.remove(), 300)
   })()
 
 // Logout
-document.getElementById('btnLogout')?.addEventListener('click', () => {
-  localStorage.removeItem('org_chart_session')
+document.getElementById('btnLogout')?.addEventListener('click', async () => {
+  try {
+    await signOutAuth()
+  } catch (error) {
+    console.error('Logout error:', error)
+  }
   window.location.replace('./login.html')
 })
 

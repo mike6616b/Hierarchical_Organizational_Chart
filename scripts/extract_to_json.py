@@ -10,7 +10,7 @@ import re
 import sys
 
 XLSX_PATH = 'membersdata.xlsx'
-JSON_OUT = 'src/members.json'
+JSON_OUT = 'private-data/members.json'
 
 def parse_excel_date(val):
     if not val:

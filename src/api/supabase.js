@@ -1,12 +1,66 @@
 /**
  * Supabase API Client
- * 使用 CDN import + window config（不需要 Vite）
+ * 使用 Vite env + Supabase Auth session
  */
 
 import { createClient } from '@supabase/supabase-js'
 
-const config = window.__APP_CONFIG__ || {}
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('[supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY')
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+})
+
+const LOGIN_ACCOUNT_DOMAIN = 'org-chart.local'
+
+export function normalizeLoginAccount(account) {
+  const normalized = String(account || '').trim().toLowerCase()
+  if (!normalized) return ''
+  return normalized.includes('@')
+    ? normalized
+    : `${normalized}@${LOGIN_ACCOUNT_DOMAIN}`
+}
+
+export async function signInWithAccount(account, password) {
+  return supabase.auth.signInWithPassword({
+    email: normalizeLoginAccount(account),
+    password,
+  })
+}
+
+export async function signOut() {
+  return supabase.auth.signOut()
+}
+
+export async function getSession() {
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw error
+  return data.session
+}
+
+export async function getCurrentProfile() {
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError) throw userError
+  if (!userData.user) return null
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, login_account, display_name, role, can_view_pii, status')
+    .eq('id', userData.user.id)
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+}
 
 /**
  * 搜尋會員 (模糊搜尋姓名/公司名稱 or 精確搜會員編號)
@@ -124,25 +178,24 @@ export async function getSubtreeTransactionStats(nodePath, startDate, endDate) {
  */
 export async function getMemberTotalTransactions(memberNo, startDate, endDate) {
   if (!memberNo) return { amount: 0, quantity: 0 }
-  let query = supabase
-    .from('transactions')
-    .select('amount, quantity')
-    .eq('member_no', memberNo)
-    .eq('type', 'order')
+  const { data, error } = await supabase
+    .rpc('get_member_total_transactions', {
+      p_member_no: memberNo,
+      start_date: startDate || null,
+      end_date: endDate || null,
+    })
 
-  if (startDate) query = query.gte('transaction_date', startDate)
-  if (endDate) query = query.lte('transaction_date', endDate)
+  if (error) {
+    console.error('Member tx error:', error)
+    return { amount: 0, quantity: 0 }
+  }
 
-  const { data, error } = await query
-  if (error) { console.error('Member tx error:', error); return { amount: 0, quantity: 0 } }
+  const row = Array.isArray(data) ? data[0] : data
 
-  let amt = 0, qty = 0
-  data.forEach(t => {
-    amt += Number(t.amount) || 0
-    qty += Number(t.quantity) || 0
-  })
-
-  return { amount: amt, quantity: qty }
+  return {
+    amount: Number(row?.amount) || 0,
+    quantity: Number(row?.quantity) || 0,
+  }
 }
 
 /**
@@ -152,19 +205,16 @@ export async function getMemberTotalTransactions(memberNo, startDate, endDate) {
 export async function getMembersWithOrders(memberNos, startDate, endDate) {
   if (!memberNos || memberNos.length === 0) return new Set()
 
-  let query = supabase
-    .from('transactions')
-    .select('member_no')
-    .in('member_no', memberNos)
-    .eq('type', 'order')
+  const { data, error } = await supabase
+    .rpc('get_members_with_orders', {
+      p_member_nos: memberNos,
+      start_date: startDate || null,
+      end_date: endDate || null,
+    })
 
-  if (startDate) query = query.gte('transaction_date', startDate)
-  if (endDate) query = query.lte('transaction_date', endDate)
-
-  const { data, error } = await query
   if (error) { console.error('Batch orders error:', error); return new Set() }
 
-  return new Set(data.map(t => t.member_no))
+  return new Set((data || []).map(t => t.member_no))
 }
 
 /**

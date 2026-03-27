@@ -26,8 +26,8 @@ def clean_date(val):
     return None
 
 def main():
-    print("Loading src/members.json...")
-    with open('src/members.json', 'r', encoding='utf-8') as f:
+    print("Loading private-data/members.json...")
+    with open('private-data/members.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
         
     fixes = 0
@@ -47,8 +47,8 @@ def main():
                         
     print(f"Fixed {fixes} dates. Nullified {nullified} unparseable dates.")
     
-    print("Saving cleaned src/members.json...")
-    with open('src/members.json', 'w', encoding='utf-8') as f:
+    print("Saving cleaned private-data/members.json...")
+    with open('private-data/members.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False)
     print("Done!")
 

@@ -2,6 +2,8 @@
 node_modules/
 dist/
 .env
+private-data/
+.DS_Store
 
 # Raw data (Too large for Git / PII concern)
 *.xlsx

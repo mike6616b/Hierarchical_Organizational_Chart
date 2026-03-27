@@ -1,15 +1,10 @@
 /**
- * 登入頁 - Table-based Auth
- * 查詢 allowed_users 表驗證帳號密碼
- * 已登入 → 直接跳主畫面
+ * 登入頁 - Supabase Auth
+ * 使用登入帳號 + 密碼換取真正的 session
  */
 
-import { createClient } from '@supabase/supabase-js'
+import { getSession, signInWithAccount } from './api/supabase.js'
 
-const config = window.__APP_CONFIG__ || {}
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY)
-
-// DOM
 const form = document.getElementById('loginForm')
 const accountInput = document.getElementById('loginAccount')
 const passwordInput = document.getElementById('loginPassword')
@@ -17,20 +12,17 @@ const btnLogin = document.getElementById('btnLogin')
 const errorEl = document.getElementById('loginError')
 const errorTextEl = document.getElementById('loginErrorText')
 
-// 如果已登入 (localStorage)，直接跳主畫面
-;(() => {
-  const session = localStorage.getItem('org_chart_session')
-  if (session) {
-    try {
-      const parsed = JSON.parse(session)
-      if (parsed && parsed.login_account) {
-        window.location.replace('./index.html')
-      }
-    } catch {}
+;(async () => {
+  try {
+    const session = await getSession()
+    if (session?.user) {
+      window.location.replace('./index.html')
+    }
+  } catch (error) {
+    console.error('Session bootstrap error:', error)
   }
 })()
 
-// 登入
 form.addEventListener('submit', async (e) => {
   e.preventDefault()
 
@@ -39,43 +31,27 @@ form.addEventListener('submit', async (e) => {
 
   if (!account || !password) return
 
-  // 進入 loading 狀態
   btnLogin.classList.add('loading')
   btnLogin.disabled = true
   errorEl.classList.remove('show')
 
   try {
-    // 查詢 allowed_users 表
-    const { data, error } = await supabase
-      .from('allowed_users')
-      .select('id, name, login_account')
-      .eq('login_account', account)
-      .eq('password', password)
-      .maybeSingle()
+    const { data, error } = await signInWithAccount(account, password)
 
     if (error) {
-      showError('系統錯誤，請稍後再試')
-      console.error('Login query error:', error)
+      showError(mapAuthError(error))
+      console.error('Login error:', error)
       return
     }
 
-    if (!data) {
-      showError('帳號或密碼錯誤')
+    if (!data?.session) {
+      showError('登入失敗，請稍後再試')
       return
     }
 
-    // 登入成功 → 存入 localStorage
-    localStorage.setItem('org_chart_session', JSON.stringify({
-      id: data.id,
-      name: data.name,
-      login_account: data.login_account,
-      logged_in_at: new Date().toISOString(),
-    }))
-
-    // 跳轉主畫面
     window.location.replace('./index.html')
-
   } catch (err) {
+    console.error('Login unexpected error:', err)
     showError('網路錯誤，請稍後再試')
   } finally {
     btnLogin.classList.remove('loading')
@@ -83,16 +59,28 @@ form.addEventListener('submit', async (e) => {
   }
 })
 
+function mapAuthError(error) {
+  const message = String(error?.message || '')
+  if (message.includes('Invalid login credentials')) {
+    return '帳號或密碼錯誤'
+  }
+  if (message.includes('Email not confirmed')) {
+    return '帳號尚未啟用，請聯繫管理員'
+  }
+  if (message.includes('rate limit')) {
+    return '嘗試次數過多，請稍後再試'
+  }
+  return '登入失敗，請稍後再試'
+}
+
 function showError(msg) {
   errorTextEl.textContent = msg
   errorEl.classList.add('show')
-  // Re-trigger shake animation
   errorEl.style.animation = 'none'
-  errorEl.offsetHeight // force reflow
+  errorEl.offsetHeight
   errorEl.style.animation = ''
 }
 
-// Enter key support
 passwordInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') form.requestSubmit()
 })
