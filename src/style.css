@@ -194,9 +194,19 @@ body {
   padding: 0;
   color: var(--muted);
   border: none;
-  background: transparent;
+  background: transparent !important;
   border-radius: 999px;
-  box-shadow: none;
+  box-shadow: none !important;
+}
+
+.btn-clear-search::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: rgba(203, 213, 225, 0.9);
 }
 
 .btn-clear-search svg {
@@ -205,9 +215,10 @@ body {
 }
 
 .btn-clear-search:hover {
-  background: rgba(239, 246, 255, 0.96);
+  background: transparent !important;
   color: var(--primary);
   border-color: transparent;
+  box-shadow: none !important;
 }
 
 .btn-clear-search:focus-visible {
