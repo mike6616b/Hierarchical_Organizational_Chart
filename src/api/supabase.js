@@ -41,10 +41,26 @@ export async function signOut() {
   return supabase.auth.signOut()
 }
 
+export function onAuthStateChange(callback) {
+  return supabase.auth.onAuthStateChange(callback)
+}
+
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession()
   if (error) throw error
   return data.session
+}
+
+export async function sendPasswordResetEmail(email, redirectTo) {
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  })
+}
+
+export async function updateCurrentUserPassword(password) {
+  return supabase.auth.updateUser({
+    password,
+  })
 }
 
 export async function getCurrentProfile() {

@@ -113,6 +113,10 @@
   margin-bottom: 40px;
 }
 
+.login-brand-compact {
+  margin-bottom: 28px;
+}
+
 .login-logo {
   width: 56px;
   height: 56px;
@@ -153,6 +157,17 @@
   gap: 20px;
 }
 
+.login-form.is-success {
+  opacity: 0.72;
+}
+
+.login-form-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -8px;
+  margin-bottom: -2px;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -191,6 +206,53 @@
 
 .form-input:hover:not(:focus) {
   border-color: var(--muted-light);
+}
+
+.form-hint {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.password-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-group .form-input {
+  padding-right: 48px;
+  width: 100%;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible,
+.password-toggle.is-active {
+  color: var(--primary);
+  background: rgba(59, 130, 246, 0.08);
+  outline: none;
+}
+
+.password-toggle svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* --- Submit Button --- */
@@ -258,6 +320,74 @@
   gap: 8px;
   align-items: center;
   animation: shake 0.4s var(--ease);
+}
+
+.login-success {
+  display: none;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  color: var(--foreground);
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.login-success.show,
+.login-error.show {
+  display: flex;
+}
+
+.login-success svg {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.auth-status-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 4px;
+}
+
+.auth-status-text {
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--foreground-secondary);
+}
+
+.auth-loading-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 72px;
+  font-size: 0.875rem;
+  color: var(--foreground-secondary);
+}
+
+.auth-footer-links {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.auth-text-link {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--duration) var(--ease), opacity var(--duration) var(--ease);
+}
+
+.auth-text-link:hover,
+.auth-text-link:focus-visible {
+  color: var(--primary-light);
+  outline: none;
 }
 
 .login-error.show {
