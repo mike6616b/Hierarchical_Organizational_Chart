@@ -90,8 +90,7 @@ const detailPanel = new DetailPanel(
   document.getElementById('btnDetailClose'),
   document.getElementById('dpContent'),
   document.getElementById('dpLoading'),
-  document.getElementById('btnDetailCompare'),
-  document.getElementById('dpCompareMeta')
+  document.getElementById('btnDetailCompare')
 )
 
 // 預設日期範圍：今年
@@ -419,6 +418,7 @@ async function handleNodeClick(node) {
   }
 
   // 葉子節點 → 顯示詳細面板
+  if (detailPanel.isCompareMode()) return
   const start = startDateInput.value
   const end = endDateInput.value
   detailPanel.show(node.data, start, end)
@@ -514,8 +514,13 @@ function handleNodeHover(node) {
 
 function handleNodeContext(node, event) {
   event.preventDefault()
+  if (!node || node.isGroupNode) return
   const start = startDateInput.value
   const end = endDateInput.value
+  if (detailPanel.isCompareMode()) {
+    detailPanel.addCompareMember(node.data, start, end)
+    return
+  }
   detailPanel.show(node.data, start, end)
 }
 

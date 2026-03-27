@@ -651,12 +651,6 @@ body {
   color: var(--foreground);
 }
 
-.dp-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
 .dp-compare-btn {
   padding: 8px 12px;
   border: 1px solid rgba(59, 130, 246, 0.18);
@@ -702,6 +696,10 @@ body {
   align-items: stretch;
 }
 
+.dp-content.is-view-mode {
+  overflow-x: hidden;
+}
+
 .dp-column {
   flex: 0 0 248px;
   display: flex;
@@ -717,9 +715,12 @@ body {
   scroll-behavior: smooth;
 }
 
-.dp-column.is-preview {
-  border-color: rgba(59, 130, 246, 0.28);
-  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.1);
+.dp-content.is-view-mode .dp-column {
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 16px 16px 14px;
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 14px 28px rgba(59, 130, 246, 0.08);
 }
 
 .dp-column::-webkit-scrollbar {
@@ -732,6 +733,10 @@ body {
   align-items: center;
   min-height: 28px;
   margin-bottom: 10px;
+}
+
+.dp-column-topbar.is-single {
+  margin-bottom: 4px;
 }
 
 .dp-status-badge {
@@ -800,7 +805,7 @@ body {
   align-items: center;
   gap: 12px;
   min-width: 0;
-  margin-bottom: 12px;
+  min-height: 72px;
 }
 
 .dp-avatar {
@@ -855,18 +860,47 @@ body {
   color: var(--foreground-secondary);
 }
 
+.dp-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.dp-block-profile {
+  min-height: 96px;
+  justify-content: center;
+}
+
+.dp-block-metrics {
+  min-height: 96px;
+  justify-content: center;
+}
+
+.dp-block-details {
+  flex: 1;
+  min-height: 0;
+}
+
+.dp-content.is-view-mode .dp-block-profile {
+  min-height: 104px;
+}
+
 .dp-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 12px;
+  min-height: 88px;
 }
 
 .dp-metric-card {
-  padding: 10px 10px 9px;
+  padding: 10px 8px 9px;
   border-radius: 14px;
   background: rgba(248, 250, 252, 0.92);
   border: 1px solid rgba(148, 163, 184, 0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
 .dp-metric-card.is-primary {
@@ -878,6 +912,11 @@ body {
   font-size: 10px;
   color: var(--muted);
   margin-bottom: 4px;
+  line-height: 1.2;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dp-metric-value {
@@ -885,7 +924,13 @@ body {
   font-weight: 700;
   color: var(--foreground);
   line-height: 1.2;
-  word-break: break-word;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  max-width: 100%;
 }
 
 .dp-metric-card.is-primary .dp-metric-value {
@@ -934,6 +979,10 @@ body {
   margin-top: 10px;
 }
 
+.dp-block-details .dp-section:last-child {
+  flex: 1;
+}
+
 .dp-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -961,6 +1010,10 @@ body {
   font-weight: 500;
   color: var(--foreground);
   word-break: break-all;
+}
+
+.dp-content.is-view-mode .dp-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .error-msg {
