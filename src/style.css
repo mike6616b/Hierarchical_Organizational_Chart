@@ -826,15 +826,25 @@ body {
   min-width: 0;
 }
 
+.dp-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 2px;
+}
+
 .dp-name {
   font-size: 16px;
   font-weight: 700;
   color: var(--foreground);
-  margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.35;
+  margin: 0;
+  min-width: 0;
 }
 
 .dp-company {
@@ -856,6 +866,8 @@ body {
   background: rgba(241, 245, 249, 0.96);
   border-radius: 12px;
   color: var(--foreground-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .dp-block {
@@ -922,7 +934,7 @@ body {
 }
 
 .dp-metric-value {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--foreground);
   line-height: 1.2;

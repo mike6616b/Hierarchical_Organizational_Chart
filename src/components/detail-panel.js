@@ -293,12 +293,14 @@ export class DetailPanel {
               ${this.escapeHtml(m.name).charAt(0)}
             </div>
             <div class="dp-name-group">
-              <h3 class="dp-name">${this.escapeHtml(m.name)}</h3>
-              ${m.company_name ? `<div class="dp-company">${this.escapeHtml(m.company_name)}</div>` : ''}
-              <div class="dp-level">
-                <span class="legend-dot" style="background:${levelColor}"></span>
-                ${this.escapeHtml(m.level)}
+              <div class="dp-name-row">
+                <h3 class="dp-name">${this.escapeHtml(m.name)}</h3>
+                <div class="dp-level">
+                  <span class="legend-dot" style="background:${levelColor}"></span>
+                  ${this.escapeHtml(m.level)}
+                </div>
               </div>
+              ${m.company_name ? `<div class="dp-company">${this.escapeHtml(m.company_name)}</div>` : ''}
             </div>
           </div>
         </div>
