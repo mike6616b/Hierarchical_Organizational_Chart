@@ -45,6 +45,7 @@ Execute:
 This creates / updates:
 
 - `profiles`
+- automatic `auth.users -> profiles` provisioning trigger
 - auth helper functions
 - authenticated-only `members_public`
 - secured RPCs for:
@@ -68,15 +69,17 @@ For every allowed login account, create an Auth user in Supabase:
 4. Set password
 5. Mark email as confirmed
 
-### 3. Backfill `profiles`
+### 3. Backfill existing `profiles`
 
-After the Auth users exist, rerun the backfill section in the SQL file or insert rows manually so each Auth user has:
+After the Auth users exist, rerun the backfill section in the SQL file or insert rows manually so each existing Auth user has:
 
 - `login_account`
 - `display_name`
 - `role`
 - `can_view_pii`
 - `status = 'active'`
+
+New users created after the migration should be provisioned automatically by the trigger in the SQL file.
 
 ### 4. Validate RPC access
 
@@ -118,6 +121,10 @@ This folder is ignored by git and not shipped with the frontend build.
 
 Recommended next cleanup after this migration is stable:
 
-- remove old `allowed_users` password-based login flow entirely
+- remove or neutralize the legacy `allowed_users.password` column entirely
 - remove or archive any tracked Excel exports containing PII
 - rotate credentials if any sensitive keys were ever exposed in public artifacts
+
+Additional review notes are in:
+
+- [docs/security-review.md](/Users/vkang/Desktop/other/Project/Project_Hierarchical_Organizational_Chart/docs/security-review.md)

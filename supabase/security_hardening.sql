@@ -47,6 +47,57 @@ BEFORE UPDATE ON public.profiles
 FOR EACH ROW
 EXECUTE FUNCTION public.set_updated_at();
 
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  derived_login_account text;
+  derived_display_name text;
+BEGIN
+  derived_login_account := COALESCE(
+    NULLIF(trim(new.raw_user_meta_data->>'login_account'), ''),
+    split_part(lower(new.email), '@', 1)
+  );
+
+  derived_display_name := COALESCE(
+    NULLIF(trim(new.raw_user_meta_data->>'display_name'), ''),
+    derived_login_account
+  );
+
+  INSERT INTO public.profiles (
+    id,
+    login_account,
+    display_name,
+    role,
+    can_view_pii,
+    status
+  )
+  VALUES (
+    new.id,
+    lower(derived_login_account),
+    derived_display_name,
+    'internal_user',
+    true,
+    'active'
+  )
+  ON CONFLICT (id) DO UPDATE
+    SET login_account = EXCLUDED.login_account,
+        display_name = EXCLUDED.display_name,
+        updated_at = now();
+
+  RETURN new;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_new_auth_user();
+
 -- ------------------------------------------------------------
 -- Helper functions
 -- ------------------------------------------------------------
@@ -109,6 +160,19 @@ BEGIN
       AND table_name = 'allowed_users'
   ) THEN
     EXECUTE 'REVOKE ALL ON TABLE public.allowed_users FROM anon, authenticated';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'allowed_users'
+      AND column_name = 'password'
+  ) THEN
+    RAISE NOTICE 'Legacy public.allowed_users.password still exists. Remove or null it after all users migrate to Supabase Auth.';
   END IF;
 END $$;
 
@@ -354,5 +418,10 @@ BEGIN
           updated_at = now();
   END IF;
 END $$;
+
+-- ------------------------------------------------------------
+-- Optional final cleanup after migration is fully complete:
+--   ALTER TABLE public.allowed_users DROP COLUMN IF EXISTS password;
+-- ------------------------------------------------------------
 
 COMMIT;
