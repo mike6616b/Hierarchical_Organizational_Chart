@@ -736,7 +736,8 @@ body {
 }
 
 .dp-column-topbar.is-single {
-  margin-bottom: 4px;
+  min-height: 0;
+  margin-bottom: 0;
 }
 
 .dp-status-badge {
@@ -870,6 +871,10 @@ body {
   justify-content: center;
 }
 
+.dp-content.is-view-mode .dp-profile {
+  min-height: 0;
+}
+
 .dp-block-metrics {
   min-height: 96px;
   justify-content: center;
@@ -881,7 +886,7 @@ body {
 }
 
 .dp-content.is-view-mode .dp-block-profile {
-  min-height: 104px;
+  min-height: 0;
 }
 
 .dp-metrics {
@@ -920,16 +925,17 @@ body {
 }
 
 .dp-metric-value {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--foreground);
   line-height: 1.2;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
+  min-height: 30px;
   max-width: 100%;
 }
 
