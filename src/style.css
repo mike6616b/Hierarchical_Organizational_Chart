@@ -193,7 +193,7 @@ body {
   height: 24px;
   padding: 0;
   color: var(--muted);
-  border: none;
+  border: 0 !important;
   background: transparent !important;
   border-radius: 999px;
   box-shadow: none !important;
@@ -217,7 +217,8 @@ body {
 .btn-clear-search:hover {
   background: transparent !important;
   color: var(--primary);
-  border-color: transparent;
+  border: 0 !important;
+  border-color: transparent !important;
   box-shadow: none !important;
 }
 
