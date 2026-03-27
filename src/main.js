@@ -68,10 +68,10 @@ let currentMember = null   // 目前查詢的會員
 let searchTimer = null     // debounce timer
 let activeResultIdx = -1   // keyboard navigation
 let filterConfig = {       // 智慧篩選 dropdown state
-  checkInventory: false,
+  checkInventory: true,
   inventoryMax: 1,
-  checkOrders: false,
-  matchType: 'or',         // 'or' | 'and'
+  checkOrders: true,
+  matchType: 'and',        // 'or' | 'and'
 }
 let nodeMap = new Map()    // node_path -> TreeNode
 let allChildrenCache = new Map() // node_path -> raw children data (before filter)
@@ -541,6 +541,14 @@ const numFilterInventory = document.getElementById('numFilterInventory')
 const chkFilterOrders = document.getElementById('chkFilterOrders')
 const radioFilterMatch = document.getElementsByName('filterMatch')
 
+chkFilterInventory.checked = filterConfig.checkInventory
+numFilterInventory.value = String(filterConfig.inventoryMax)
+chkFilterOrders.checked = filterConfig.checkOrders
+for (const radio of radioFilterMatch) {
+  radio.checked = radio.value === filterConfig.matchType
+}
+btnFilterMenu.classList.add('active')
+
 // Toggle dropdown
 btnFilterMenu?.addEventListener('click', (e) => {
   e.stopPropagation()
@@ -658,32 +666,8 @@ document.getElementById('btnApplyDate').addEventListener('click', () => {
 // 麵包屑
 // ============================================================
 function updateBreadcrumb(ancestors, target) {
-  const sorted = [...ancestors]
-    .filter(a => a.member_no !== target.member_no)
-    .sort((a, b) => {
-      const aLen = (a.node_path || '').split('.').length
-      const bLen = (b.node_path || '').split('.').length
-      return aLen - bLen
-    })
-
-  let html = ''
-  for (const a of sorted) {
-    html += `<span class="breadcrumb-item" data-path="${escapeHtml(a.node_path)}">${escapeHtml(a.name)}</span>`
-    html += '<span class="breadcrumb-sep">›</span>'
-  }
-  html += `<span class="breadcrumb-item current">${escapeHtml(target.name)}</span>`
-
-  breadcrumb.innerHTML = html
-  breadcrumb.style.display = 'flex'
-
-  // Bind breadcrumb clicks → navigate to that member
-  breadcrumb.querySelectorAll('.breadcrumb-item:not(.current)').forEach(el => {
-    el.addEventListener('click', () => {
-      const path = el.dataset.path
-      const member = [...ancestors].find(a => a.node_path === path)
-      if (member) selectMember(member)
-    })
-  })
+  breadcrumb.innerHTML = ''
+  breadcrumb.style.display = 'none'
 }
 
 // ============================================================

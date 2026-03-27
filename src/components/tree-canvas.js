@@ -394,6 +394,7 @@ export class TreeCanvas {
     const isHovered = node === this.hoveredNode
     const isSelected = node === this.selectedNode
     const isDimmed = node.dimmed
+    const isHighlighted = node.highlighted
 
     ctx.save()
 
@@ -403,7 +404,11 @@ export class TreeCanvas {
     }
 
     // ---- Shadow ----
-    if (isHovered || isSelected) {
+    if (isHighlighted) {
+      ctx.shadowColor = 'rgba(59, 130, 246, 0.2)'
+      ctx.shadowBlur = 28
+      ctx.shadowOffsetY = 10
+    } else if (isHovered || isSelected) {
       ctx.shadowColor = 'rgba(30, 64, 175, 0.15)'
       ctx.shadowBlur = 20
       ctx.shadowOffsetY = 6
@@ -426,13 +431,23 @@ export class TreeCanvas {
     ctx.shadowColor = 'transparent'
 
     // ---- Border ----
-    ctx.strokeStyle = isHigh ? HIGHLIGHT_COLOR
+    ctx.strokeStyle = isHighlighted ? '#2563EB'
+                    : isHigh ? HIGHLIGHT_COLOR
                     : isSelected ? '#3B82F6'
                     : isHovered ? '#93C5FD'
                     : '#E8EDF5'
-    ctx.lineWidth = isHigh ? 2 : isSelected ? 2 : 1
+    ctx.lineWidth = isHighlighted ? 2.5 : isHigh ? 2 : isSelected ? 2 : 1
     this._roundRect(ctx, x, y, w, h, r)
     ctx.stroke()
+
+    if (isHighlighted) {
+      ctx.save()
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.14)'
+      ctx.lineWidth = 6
+      this._roundRect(ctx, x - 4, y - 4, w + 8, h + 8, r + 2)
+      ctx.stroke()
+      ctx.restore()
+    }
 
     // ---- Color accent bar (left side, clipped to card shape) ----
     ctx.save()
