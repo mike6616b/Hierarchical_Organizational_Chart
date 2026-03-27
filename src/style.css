@@ -159,7 +159,7 @@ body {
 .search-input {
   width: 100%;
   height: var(--header-control-height);
-  padding: 0 40px 0 40px;
+  padding: 0 42px 0 40px;
   border: 1.5px solid var(--border);
   border-radius: 12px;
   font-family: var(--font-body);
@@ -186,11 +186,43 @@ body {
 
 .btn-clear-search {
   position: absolute;
-  right: 6px;
-  width: 26px;
-  height: 26px;
-  padding: 4px;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  padding: 0;
   color: var(--muted);
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.btn-clear-search::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: rgba(203, 213, 225, 0.9);
+}
+
+.btn-clear-search svg {
+  width: 14px;
+  height: 14px;
+}
+
+.btn-clear-search:hover {
+  background: rgba(239, 246, 255, 0.96);
+  color: var(--primary);
+  border-color: transparent;
+}
+
+.btn-clear-search:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
 /* Search Results Dropdown */
