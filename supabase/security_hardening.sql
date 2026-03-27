@@ -135,6 +135,8 @@ GRANT SELECT ON public.members_public TO authenticated;
 -- ------------------------------------------------------------
 -- Secured member detail RPC
 -- ------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_member_detail(text);
+
 CREATE OR REPLACE FUNCTION public.get_member_detail(p_member_no text)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -176,6 +178,9 @@ GRANT EXECUTE ON FUNCTION public.get_member_detail(text) TO authenticated;
 -- ------------------------------------------------------------
 -- Secured transaction summary RPCs
 -- ------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_member_total_transactions(text, date, date);
+DROP FUNCTION IF EXISTS public.get_members_with_orders(text[], date, date);
+
 CREATE OR REPLACE FUNCTION public.get_member_total_transactions(
   p_member_no text,
   start_date date DEFAULT NULL,
@@ -237,6 +242,9 @@ GRANT EXECUTE ON FUNCTION public.get_members_with_orders(text[], date, date) TO 
 -- ------------------------------------------------------------
 -- Secure subtree stats RPCs
 -- ------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_subtree_stats(ltree, date, date);
+DROP FUNCTION IF EXISTS public.get_subtree_transaction_stats(ltree, date, date);
+
 CREATE OR REPLACE FUNCTION public.get_subtree_stats(
   target_path ltree,
   start_date date DEFAULT NULL,
@@ -285,8 +293,8 @@ CREATE OR REPLACE FUNCTION public.get_subtree_transaction_stats(
   end_date date DEFAULT NULL
 )
 RETURNS TABLE (
-  total_order_amount numeric,
-  total_order_quantity bigint
+  total_amount numeric,
+  total_quantity bigint
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -297,8 +305,8 @@ BEGIN
 
   RETURN QUERY
   SELECT
-    COALESCE(SUM(CASE WHEN t.type = 'order' THEN t.amount ELSE 0 END), 0) AS total_order_amount,
-    COALESCE(SUM(CASE WHEN t.type = 'order' THEN t.quantity ELSE 0 END), 0)::bigint AS total_order_quantity
+    COALESCE(SUM(CASE WHEN t.type = 'order' THEN t.amount ELSE 0 END), 0) AS total_amount,
+    COALESCE(SUM(CASE WHEN t.type = 'order' THEN t.quantity ELSE 0 END), 0)::bigint AS total_quantity
   FROM public.members m
   LEFT JOIN public.transactions t ON t.member_no = m.member_no
     AND (start_date IS NULL OR t.transaction_date >= start_date)
